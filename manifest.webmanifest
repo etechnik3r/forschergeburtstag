@@ -1,0 +1,17 @@
+{
+  "name": "Forscher-Geburtstag",
+  "short_name": "Forscher",
+  "description": "Forscher-Mission: Videos schauen, Rätsel lösen, Lösungswort finden.",
+  "lang": "de",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#171540",
+  "theme_color": "#171540",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
