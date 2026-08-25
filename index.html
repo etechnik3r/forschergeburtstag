@@ -6,23 +6,31 @@
 <title>Forscher-Mission · Labor-Konsole</title>
 <style>
 /* ============================================================
-   Design: nüchternes Labor-Dashboard.
-   Graphit + Teal + Amber. Große, klar tippbare Bedienelemente.
+   Design: buntes Experimentier-Labor für Kinder.
+   Violett + Sonnengelb + Frischgrün auf tiefem Indigo.
+   Große, klar tippbare Bedienelemente.
    Komplett offline: keine externen Schriften, kein Framework.
+   Optimiert für Tablet im Breitbildformat (8–10 Zoll, quer).
    ============================================================ */
 :root{
-  --bg:#0c1219;
-  --grid:rgba(120,160,190,.06);
-  --panel:#111c26;
-  --panel-2:#16232f;
-  --edge:rgba(150,180,205,.14);
-  --ink:#e8eff6;
-  --muted:#8ba0b2;
-  --teal:#2dd4bf;
-  --amber:#f4b740;
-  --ok:#46c98b;
-  --no:#ef6a5a;
-  --radius:18px;
+  --bg:#171540;
+  --grid:rgba(150,140,255,.07);
+  --panel:#221f57;
+  --panel-2:#2c286e;
+  --edge:rgba(170,160,255,.18);
+  --ink:#f4f2ff;
+  --muted:#b3aee0;
+  /* Hauptfarbe (Aktion / Marke) */
+  --primary:#8b6cff;      --on-primary:#ffffff;
+  /* Info-Akzent (Anzeigen, Labels) */
+  --info:#5b9dff;
+  /* Warm-Akzent (aktueller Schritt) */
+  --amber:#ffb62e;        --on-amber:#3a2600;
+  /* Richtig */
+  --ok:#37d67a;           --on-ok:#053021;
+  /* Falsch */
+  --no:#ff6a5a;
+  --radius:20px;
   --mono: ui-monospace,"SFMono-Regular","Cascadia Code","Consolas",monospace;
   --sans: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
 }
@@ -32,14 +40,16 @@ body{
   font-family:var(--sans); color:var(--ink); overflow:hidden;
   user-select:none; touch-action:manipulation;
   background:
-    linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,
-    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,
-    radial-gradient(120% 90% at 50% -10%, #14212d, var(--bg) 70%);
+    linear-gradient(var(--grid) 1px,transparent 1px) 0 0/38px 38px,
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/38px 38px,
+    radial-gradient(130% 100% at 50% -10%, #322a86, var(--bg) 68%);
 }
 #confetti{position:fixed; inset:0; z-index:60; pointer-events:none}
 
-.stage{position:relative; z-index:1; height:100%; display:flex; align-items:center; justify-content:center; padding:18px}
-.screen{display:none; width:100%; max-width:820px}
+.stage{position:relative; z-index:1; height:100%; display:flex; align-items:center; justify-content:center; padding:clamp(10px,2.2vh,22px)}
+.screen{display:none; width:100%; max-width:760px}
+/* Die Stationen nutzen im Querformat mehr Breite (Video + große Tasten). */
+#screen-station{max-width:1040px}
 .screen.is-active{display:block; animation:in .35s ease both}
 @keyframes in{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
 
@@ -50,7 +60,7 @@ body{
   padding:22px;
 }
 .eyebrow{font-family:var(--mono); font-size:13px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted)}
-.readout{font-family:var(--mono); color:var(--teal)}
+.readout{font-family:var(--mono); color:var(--info)}
 h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-height:1.05}
 .lead{color:var(--muted); font-size:clamp(16px,3.4vw,20px); margin:0 0 22px; line-height:1.4}
 .center{text-align:center}
@@ -62,9 +72,9 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
   box-shadow:0 4px 0 rgba(0,0,0,.35); transition:transform .07s, filter .15s;
 }
 .btn:active{transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,.35)}
-.btn:focus-visible{outline:3px solid var(--teal); outline-offset:3px}
-.btn--go{background:var(--teal); color:#04231f; border-color:transparent; font-size:clamp(20px,5vw,30px); padding:22px 40px}
-.btn--amber{background:var(--amber); color:#2a1d00; border-color:transparent}
+.btn:focus-visible{outline:3px solid var(--info); outline-offset:3px}
+.btn--go{background:var(--primary); color:var(--on-primary); border-color:transparent; font-size:clamp(20px,5vw,30px); padding:22px 40px}
+.btn--amber{background:var(--amber); color:var(--on-amber); border-color:transparent}
 .btn-row{display:flex; flex-wrap:wrap; justify-content:center}
 
 .ghost{position:fixed; z-index:40; background:rgba(255,255,255,.06); color:var(--muted);
@@ -79,14 +89,14 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .segs{display:flex; gap:8px}
 .seg{width:44px; height:40px; border-radius:10px; border:1px solid var(--edge); background:var(--panel-2);
      display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:15px; color:var(--muted); position:relative}
-.seg.current{border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 3px rgba(244,183,64,.14); animation:pulse 1.6s ease-in-out infinite}
-.seg.done{border-color:var(--teal); color:#04231f; background:var(--teal)}
+.seg.current{border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.18); animation:pulse 1.6s ease-in-out infinite}
+.seg.done{border-color:var(--ok); color:var(--on-ok); background:var(--ok)}
 .seg.done::after{content:"✓"; font-weight:700}
 .seg.done span{display:none}
-@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(244,183,64,.05)}}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,182,46,.06)}}
 
 .viewport{position:relative; border-radius:14px; overflow:hidden; background:#000; border:1px solid var(--edge);
-          aspect-ratio:16/9; box-shadow:inset 0 0 0 1px rgba(45,212,191,.10)}
+          aspect-ratio:16/9; max-height:54vh; margin:0 auto; box-shadow:inset 0 0 0 1px rgba(139,108,255,.14)}
 .viewport::before{content:""; position:absolute; inset:0; z-index:2; pointer-events:none;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 3px,rgba(0,0,0,.10) 3px 4px)}
 .viewport video{width:100%; height:100%; display:block; object-fit:contain; background:#000; position:relative; z-index:1}
@@ -94,7 +104,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
            font-size:74px; color:#fff; background:rgba(0,0,0,.35)}
 .play-hint.show{display:flex}
 .vp-label{position:absolute; z-index:3; top:12px; left:14px; font-family:var(--mono); font-size:12px;
-          letter-spacing:.16em; color:var(--teal); background:rgba(0,0,0,.4); padding:3px 8px; border-radius:6px}
+          letter-spacing:.16em; color:var(--info); background:rgba(0,0,0,.4); padding:3px 8px; border-radius:6px}
 .video-note{color:var(--muted); font-family:var(--mono); font-size:13px; text-align:center; margin-top:10px}
 .video-error{display:none; text-align:center; padding:26px}
 .video-error.show{display:block}
@@ -105,7 +115,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 
 .display{min-height:66px; background:#0a1119; border:1px solid var(--edge); border-radius:14px;
   display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 14px;
-  font-family:var(--mono); font-size:clamp(26px,7vw,42px); letter-spacing:6px; color:var(--teal)}
+  font-family:var(--mono); font-size:clamp(26px,7vw,42px); letter-spacing:6px; color:var(--info)}
 .display.shake{animation:shake .4s}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px)}
   40%{transform:translateX(12px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
@@ -122,9 +132,9 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
   background:linear-gradient(180deg,#1b2a37,#132029); color:var(--ink);
   font-family:var(--mono); font-weight:600; font-size:clamp(18px,4.5vw,24px); box-shadow:0 4px 0 rgba(0,0,0,.4); cursor:pointer}
 .key:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.4)}
-.key.max{max-width:66px}
+.key.max{max-width:82px}
 .key--wide{flex:1.6 1 0; background:#1a2732}
-.key--check{flex:2.2 1 0; background:var(--teal); color:#04231f; border-color:transparent}
+.key--check{flex:2.2 1 0; background:var(--ok); color:var(--on-ok); border-color:transparent}
 .numpad .key{height:clamp(58px,13vw,74px); font-size:clamp(24px,7vw,32px); max-width:none}
 
 .done-view{display:none; text-align:center; padding:18px 6px}
@@ -133,13 +143,27 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 
 .reveal{display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:8px 0 18px}
 .reveal span{display:inline-block; font-family:var(--mono); font-weight:700; font-size:clamp(30px,9vw,58px);
-  padding:6px 14px; border-radius:12px; background:var(--teal); color:#04231f; box-shadow:0 5px 0 rgba(0,0,0,.4);
+  padding:6px 14px; border-radius:12px; background:var(--primary); color:var(--on-primary); box-shadow:0 5px 0 rgba(0,0,0,.4);
   transform:scale(0); animation:letter .45s cubic-bezier(.2,1.6,.4,1) forwards}
 @keyframes letter{to{transform:none}}
 
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001s !important; transition-duration:.05s !important}
   .viewport::before{display:none}
+}
+
+/* Tablet im Querformat: kompakter, damit Video + Frage + Tastatur
+   ohne Scrollen auf einen Blick passen. */
+@media (orientation:landscape) and (max-height:820px){
+  .console{padding:16px}
+  .missionbar{margin-bottom:10px}
+  .viewport{max-height:46vh}
+  .video-note{margin-top:6px}
+  .task-q{margin:2px 0 10px}
+  .display{min-height:56px}
+  .keyboard{gap:6px} .krow{gap:6px}
+  .key{height:clamp(44px,7.2vh,58px)}
+  .numpad .key{height:clamp(52px,9vh,68px)}
 }
 </style>
 </head>
@@ -154,7 +178,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
     <div class="console center">
       <div class="eyebrow">Labor-Konsole · Zugang</div>
       <h1 id="mName">FORSCHER-MISSION</h1>
-      <p class="lead" id="mLead">Professor Wunderlich braucht dein Team.</p>
+      <p class="lead" id="mLead">Professor Dr. Dr. Albrecht Zweistein braucht dein Team.</p>
       <button class="btn btn--go" id="startBtn">▶ Mission starten</button>
     </div>
   </section>
@@ -227,7 +251,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 ================================================================= */
 const CONFIG = {
   missionsName: "FORSCHER-MISSION",
-  einleitung:   "Professor Wunderlich braucht dein Team im Labor.",
+  einleitung:   "Professor Dr. Dr. Albrecht Zweistein braucht dein Team im Labor.",
 
   stationen: [
     { titel:"Der Zaubertrank", video:"station-1.mp4", frage:"Welche Farbe hatte das Wasser?",  antwort:"BLAU" },
@@ -277,7 +301,7 @@ const sndWin=()=>{ [523,659,784,1047].forEach((f,i)=>tone(f,i*.13,.28,"triangle"
 
 const cvs=$("#confetti"), cx=cvs.getContext("2d");
 let parts=[], raf=null;
-const CC=["#2dd4bf","#f4b740","#e8eff6","#46c98b"];
+const CC=["#8b6cff","#ffb62e","#5b9dff","#37d67a","#ff6a5a"];
 function fit(){ cvs.width=innerWidth; cvs.height=innerHeight; } addEventListener("resize",fit); fit();
 function burst(n){
   if(reduced) return;
