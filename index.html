@@ -158,24 +158,48 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
   transform:scale(0); animation:letter .45s cubic-bezier(.2,1.6,.4,1) forwards}
 @keyframes letter{to{transform:none}}
 
-/* Einstell-Zahnrad – dezent unten rechts, nur auf der Startseite. */
-.gear{position:fixed; z-index:45; right:calc(14px + env(safe-area-inset-right));
-  bottom:calc(14px + env(safe-area-inset-bottom)); display:none;
-  width:52px; height:52px; border-radius:50%; border:1px solid var(--edge);
-  background:rgba(10,8,30,.5); color:var(--muted); font-size:24px; line-height:1;
-  cursor:pointer; backdrop-filter:blur(4px)}
-.gear:active{transform:translateY(2px)}
+/* Einstell-Zahnrad – dezent unten links, auf jedem Screen, halbtransparent. */
+.gear{position:fixed; z-index:45; left:calc(12px + env(safe-area-inset-left));
+  bottom:calc(12px + env(safe-area-inset-bottom)); display:none;
+  width:36px; height:36px; border-radius:50%; border:1px solid var(--edge);
+  background:rgba(10,8,30,.28); color:var(--muted); font-size:17px; line-height:1;
+  cursor:pointer; opacity:.4; backdrop-filter:blur(3px); transition:opacity .15s}
+.gear:hover,.gear:focus-visible{opacity:.9}
+.gear:active{transform:translateY(2px); opacity:.9}
 
 /* Einstell-Dialog */
 .sheet{position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
   padding:20px; background:rgba(6,5,20,.72); backdrop-filter:blur(3px)}
 .sheet[hidden]{display:none}
-.sheet-card{width:100%; max-width:420px; background:linear-gradient(180deg,var(--panel-2),var(--panel));
+.sheet-card{width:100%; max-width:420px; max-height:90vh; overflow:auto;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
   border:1px solid var(--edge); border-radius:var(--radius); padding:24px; text-align:center;
   box-shadow:0 24px 60px rgba(0,0,0,.55)}
-.sheet-title{font-size:clamp(22px,5vw,28px); margin:4px 0 18px}
+.sheet-title{font-size:clamp(22px,5vw,28px); margin:4px 0 16px}
 .opt{width:100%; justify-content:center; margin:8px 0}
 .opt-note{color:var(--muted); font-size:14px; line-height:1.4; margin:6px 2px 14px}
+.opt-sep{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--muted); text-align:left; margin:18px 2px 4px; border-top:1px solid var(--edge); padding-top:14px}
+.btn--danger{background:transparent; color:var(--no); border-color:var(--no)}
+
+/* PIN-Feld */
+.pin-dots{display:flex; gap:16px; justify-content:center; margin:8px 0 2px}
+.pin-dots i{width:16px; height:16px; border-radius:50%; border:2px solid var(--edge); display:block}
+.pin-dots i.on{background:var(--info); border-color:var(--info)}
+.pin-dots.shake{animation:shake .4s}
+.pin-msg{min-height:20px; color:var(--no); font-family:var(--mono); font-size:14px; margin:4px 0}
+.pinpad{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:6px auto 8px; max-width:260px}
+.pinpad button{height:58px; font-size:24px; font-weight:700; border-radius:12px; border:1px solid var(--edge);
+  background:linear-gradient(180deg,#241f5c,#1b1746); color:var(--ink); font-family:var(--mono); cursor:pointer;
+  box-shadow:0 4px 0 rgba(0,0,0,.4)}
+.pinpad button:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.4)}
+
+/* Kapitel-Sprungmarken */
+.chapters{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin:6px 0 2px}
+.chapters button{padding:13px 8px; border-radius:12px; border:1px solid var(--edge); background:var(--panel-2);
+  color:var(--ink); font-weight:700; font-size:15px; cursor:pointer; font-family:var(--sans); text-align:center}
+.chapters button:active{transform:translateY(2px)}
+.chapters button.cur{border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 2px rgba(255,182,46,.15)}
 
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001s !important; transition-duration:.05s !important}
@@ -202,17 +226,39 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 <button class="ghost" id="skipBtn">VIDEO ÜBERSPRINGEN ⏭</button>
 <button class="ghost" id="restartBtn">↺ NEU STARTEN</button>
 
-<!-- Einstell-Zahnrad: nur auf der Startseite, für Erwachsene -->
+<!-- Einstell-Zahnrad: auf jedem Screen, dezent unten links, für Erwachsene -->
 <button class="gear" id="gearBtn" aria-label="Einstellungen">⚙</button>
 
 <div class="sheet" id="settings" hidden>
   <div class="sheet-card">
-    <div class="eyebrow">Einstellungen</div>
-    <h2 class="sheet-title">Für Erwachsene</h2>
-    <button class="btn opt" id="fsBtn">⛶ Vollbild einschalten</button>
-    <button class="btn opt" id="installBtn">📲 Als App installieren</button>
-    <p class="opt-note" id="installNote">Öffne die Seite in Chrome auf dem Tablet, um sie als App zu installieren.</p>
-    <button class="btn btn--amber opt" id="settingsClose">Fertig</button>
+
+    <!-- Schritt 1: PIN-Abfrage -->
+    <div id="pinStep">
+      <div class="eyebrow">🔒 Gesperrt</div>
+      <h2 class="sheet-title">PIN eingeben</h2>
+      <div class="pin-dots" id="pinDots"></div>
+      <div class="pin-msg" id="pinMsg"></div>
+      <div class="pinpad" id="pinpad"></div>
+      <button class="btn opt" id="pinCancel">Abbrechen</button>
+    </div>
+
+    <!-- Schritt 2: Menü (erst nach richtiger PIN) -->
+    <div id="menuStep" hidden>
+      <div class="eyebrow">Einstellungen</div>
+      <h2 class="sheet-title">Für Erwachsene</h2>
+      <button class="btn opt" id="fsBtn">⛶ Vollbild einschalten</button>
+      <button class="btn opt" id="installBtn">📲 Als App installieren</button>
+      <p class="opt-note" id="installNote">Öffne die Seite in Chrome auf dem Tablet, um sie als App zu installieren.</p>
+
+      <div class="opt-sep">Kapitel anspringen</div>
+      <div class="chapters" id="chapters"></div>
+
+      <div class="opt-sep">Spielstand</div>
+      <button class="btn opt btn--danger" id="resetBtn">↺ Spiel komplett zurücksetzen</button>
+
+      <button class="btn btn--amber opt" id="settingsClose">Fertig</button>
+    </div>
+
   </div>
 </div>
 
@@ -320,7 +366,7 @@ function show(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("is-active"));
   $("#"+id).classList.add("is-active");
   $("#restartBtn").style.display = (id==="screen-final") ? "block" : "none";
-  $("#gearBtn").style.display    = (id==="screen-start") ? "block" : "none";
+  $("#gearBtn").style.display    = "block";   // Zahnrad auf jedem Screen
 }
 function block(name){ // 'video' | 'quiz' | 'done'
   $("#blockVideo").style.display = name==="video" ? "block":"none";
@@ -396,7 +442,7 @@ $("#videoErrorBtn").onclick = ()=> toQuiz();
 $("#replayBtn").onclick     = ()=>{ block("video"); playVideo(ST[stage].video, toQuiz); };
 
 function enterStation(i){
-  stage=i; updateBar();
+  stage=i; updateBar(); saveState("station");
   $("#vpLabel").textContent="STATION "+String(i+1).padStart(2,"0");
   block("video");
   if(ST[i].video) playVideo(ST[i].video, toQuiz);
@@ -473,6 +519,7 @@ function check(){
 $("#nextBtn").onclick = ()=>{ if(stage===ST.length-1) goFinal(); else enterStation(stage+1); };
 
 function goFinal(){
+  saveState("final");
   show("screen-final");
   const w=$("#reveal"); w.innerHTML="";
   CONFIG.loesungswort.split("").forEach((ch,i)=>{
@@ -484,6 +531,14 @@ function goFinal(){
   sndWin(); burst(140); setTimeout(()=>burst(90),500);
 }
 
+/* Fortschritt speichern (localStorage – überlebt Reload & PWA-Neustart) */
+const SKEY="forscher-fortschritt";
+function saveState(phase){ try{ localStorage.setItem(SKEY, JSON.stringify({v:1,stage,phase})); }catch(e){} }
+function loadState(){ try{ return JSON.parse(localStorage.getItem(SKEY)||"null"); }catch(e){ return null; } }
+function clearState(){ try{ localStorage.removeItem(SKEY); }catch(e){} }
+function hasProgress(){ const r=loadState(); return !!(r && (r.stage>0 || r.phase==="final")); }
+function updateStartLabel(){ $("#startBtn").textContent = hasProgress() ? "▶ Weiter" : "▶ Mission starten"; }
+
 const hasName = !!CONFIG.missionsName.trim();
 $("#mName").textContent   = CONFIG.missionsName;
 $("#mName").hidden        = !hasName;                 // leerer Titel -> keine leere Zeile
@@ -491,16 +546,22 @@ $("#mLead").textContent   = CONFIG.einleitung;
 $("#barName").textContent = CONFIG.missionsName;
 $(".missionbar .title").style.display = hasName ? "" : "none";
 buildBar();
+updateStartLabel();
 show("screen-start");
 
-$("#startBtn").onclick = ()=>{ initAudio(); goFullscreen(); show("screen-station"); enterStation(0); };
+$("#startBtn").onclick = ()=>{
+  initAudio(); goFullscreen();
+  const r=loadState();
+  if(r && r.phase==="final") goFinal();
+  else { show("screen-station"); enterStation(r && r.stage>0 ? r.stage : 0); }
+};
 $("#outroBtn").onclick = ()=>{
   show("screen-station");
   $("#blockQuiz").style.display="none"; $("#blockDone").classList.remove("show");
   block("video"); $("#vpLabel").textContent="GEHEIME BOTSCHAFT";
   playVideo(CONFIG.abschlussVideo, ()=>goFinal());
 };
-$("#restartBtn").onclick = ()=>{ stage=0; typed=""; updateBar(); show("screen-start"); };
+$("#restartBtn").onclick = ()=>{ clearState(); stage=0; typed=""; updateBar(); updateStartLabel(); show("screen-start"); };
 
 /* ================================================================
    Vollbild · Einstellungen · App-Installation (PWA)
@@ -523,14 +584,74 @@ function syncFsLabel(){
 document.addEventListener("fullscreenchange", syncFsLabel);
 document.addEventListener("webkitfullscreenchange", syncFsLabel);
 
-// Einstell-Dialog öffnen/schließen
+// Einstell-Dialog mit PIN-Sperre
 const settings = $("#settings");
-function openSettings(){ syncFsLabel(); refreshInstall(); settings.hidden=false; }
+const PIN = "1337";
+let pinEntry = "";
+
+function openSettings(){
+  pinEntry=""; $("#pinMsg").textContent=""; renderPinDots();
+  $("#pinStep").hidden=false; $("#menuStep").hidden=true;   // immer erst PIN
+  settings.hidden=false;
+}
 function closeSettings(){ settings.hidden=true; }
-$("#gearBtn").onclick      = openSettings;
-$("#settingsClose").onclick= closeSettings;
+function showMenuStep(){
+  $("#pinStep").hidden=true; $("#menuStep").hidden=false;
+  syncFsLabel(); refreshInstall(); buildChapters();
+}
+
+function renderPinDots(){
+  const d=$("#pinDots"); d.innerHTML="";
+  for(let i=0;i<4;i++){ const x=document.createElement("i"); if(i<pinEntry.length) x.classList.add("on"); d.appendChild(x); }
+}
+function checkPin(){
+  if(pinEntry===PIN){ pinEntry=""; $("#pinMsg").textContent=""; showMenuStep(); }
+  else{
+    $("#pinMsg").textContent="Falsche PIN";
+    const d=$("#pinDots"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
+    setTimeout(()=>{ pinEntry=""; renderPinDots(); }, 450);
+  }
+}
+function buildPinpad(){
+  const pad=$("#pinpad"); pad.innerHTML="";
+  ["1","2","3","4","5","6","7","8","9","","0","⌫"].forEach(k=>{
+    if(k===""){ pad.appendChild(document.createElement("span")); return; }
+    const b=document.createElement("button"); b.type="button"; b.textContent=k;
+    b.onclick=()=>{
+      if(k==="⌫") pinEntry=pinEntry.slice(0,-1);
+      else if(pinEntry.length<4) pinEntry+=k;
+      renderPinDots();
+      if(pinEntry.length===4) setTimeout(checkPin,120);
+    };
+    pad.appendChild(b);
+  });
+}
+buildPinpad(); renderPinDots();
+
+// Kapitel-Sprungmarken
+function buildChapters(){
+  const box=$("#chapters"); box.innerHTML="";
+  ST.forEach((s,i)=>{
+    const b=document.createElement("button"); b.type="button";
+    b.textContent=(i+1)+". "+s.titel;
+    if(i===stage) b.classList.add("cur");
+    b.onclick=()=>{ closeSettings(); initAudio(); show("screen-station"); enterStation(i); };
+    box.appendChild(b);
+  });
+  const f=document.createElement("button"); f.type="button"; f.textContent="🏆 Auflösung";
+  f.onclick=()=>{ closeSettings(); goFinal(); };
+  box.appendChild(f);
+}
+
+$("#gearBtn").onclick       = openSettings;
+$("#pinCancel").onclick     = closeSettings;
+$("#settingsClose").onclick = closeSettings;
 settings.addEventListener("click", e=>{ if(e.target===settings) closeSettings(); });
-$("#fsBtn").onclick        = ()=>{ toggleFullscreen(); setTimeout(syncFsLabel,60); };
+$("#fsBtn").onclick         = ()=>{ toggleFullscreen(); setTimeout(syncFsLabel,60); };
+$("#resetBtn").onclick      = ()=>{
+  clearState(); stage=0; typed=""; updateBar(); updateStartLabel();
+  closeSettings(); show("screen-start");
+};
 
 // App-Installation (PWA)
 let deferredPrompt = null;
