@@ -148,6 +148,22 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .key--check{flex:2.2 1 0; background:var(--ok); color:var(--on-ok); border-color:transparent}
 .numpad .key{height:clamp(58px,13vw,74px); font-size:clamp(24px,7vw,32px); max-width:none}
 
+/* Mess-Station: sechs Bild-Kontakte nebeneinander */
+.mess-tiles{display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:8px 0 12px}
+.mtile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff;
+  padding:8px 6px 6px; display:flex; flex-direction:column; align-items:center; gap:4px;
+  transition:transform .12s, box-shadow .15s; opacity:.55}
+.mtile img{width:100%; height:clamp(46px,8.5vw,88px); object-fit:contain; display:block}
+.mtile-num{position:absolute; top:-10px; left:-8px; width:26px; height:26px; border-radius:50%;
+  background:var(--panel-2); border:1px solid var(--edge); color:var(--muted); font-family:var(--mono);
+  font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center}
+.mtile-badge{font-family:var(--mono); font-weight:700; font-size:15px; color:#5a5f8a; min-height:19px}
+.mtile.active{opacity:1; border-color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.28)}
+.mtile.active .mtile-num{background:var(--amber); color:var(--on-amber); border-color:transparent}
+.mtile.done{opacity:1; border-color:var(--ok); background:#e6fff1}
+.mtile.done .mtile-num{background:var(--ok); color:var(--on-ok); border-color:transparent}
+.mtile.done .mtile-badge{color:var(--on-ok)}
+
 .done-view{display:none; text-align:center; padding:18px 6px}
 .done-view.show{display:block}
 .done-view .stamp{font-family:var(--mono); font-size:clamp(28px,8vw,46px); color:var(--ok); letter-spacing:.1em; margin-bottom:8px}
@@ -307,6 +323,18 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
         <div class="keyboard" id="keyboard"></div>
       </div>
 
+      <div id="blockMess" style="display:none">
+        <div class="task-head">
+          <div class="task-title" id="messTitle">Messstation</div>
+          <button class="replay-link" id="messReplay">🔁 Anweisung nochmal</button>
+        </div>
+        <div class="task-q" id="messQ">Frage</div>
+        <div class="mess-tiles" id="messTiles"></div>
+        <div class="display" id="messDisplay"></div>
+        <div class="feedback" id="messFeedback"></div>
+        <div class="keyboard" id="messKeyboard"></div>
+      </div>
+
       <div id="blockDone" class="done-view">
         <div class="stamp">✓ RICHTIG</div>
         <p class="lead" id="doneMsg">Weiter geht’s!</p>
@@ -346,7 +374,23 @@ const CONFIG = {
   stationen: [
     { titel:"Der Zaubertrank", video:"station-1.mp4", frage:"Welche Farbe hatte das Wasser?",  antwort:"BLAU" },
     { titel:"Der Magnet",      video:"station-2.mp4", frage:"Wie viele Büroklammern klebten?", antwort:"7"    },
-    { titel:"Der Vulkan",      video:"station-3.mp4", frage:"Wie heißt das sprudelnde Gas?",    antwort:"CO2"  }
+    { titel:"Der Vulkan",      video:"station-3.mp4", frage:"Wie heißt das sprudelnde Gas?",    antwort:"CO2"  },
+
+    // MESS-STATION: 6 Bilder = Messkontakte. Jedes Kind misst per
+    // Durchgangsprüfung, welche Kontakt-Nummer (1–16) zum Bild gehört.
+    // Von links nach rechts: Nummer eintippen, mit ✓ bestätigen.
+    // Passe unten nur die "nr" an die echte Verdrahtung an.
+    { titel:"Die Messstation", video:"", typ:"messung",
+      frage:"Miss mit dem Prüfstift: Welche Nummer (1–16) gehört zu jedem Bild?",
+      kontakte:[
+        { bild:"elektro_start_1.png", nr:14 },
+        { bild:"elektro_start_2.png", nr:3  },
+        { bild:"elektro_start_3.png", nr:9  },
+        { bild:"elektro_start_4.png", nr:16 },
+        { bild:"elektro_start_5.png", nr:5  },
+        { bild:"elektro_start_6.png", nr:11 }
+      ]
+    }
   ],
 
   abschlussVideo: "",   // optional: MP4 nach dem Finale, "" = keins
@@ -368,12 +412,15 @@ function show(id){
   $("#restartBtn").style.display = (id==="screen-final") ? "block" : "none";
   $("#gearBtn").style.display    = "block";   // Zahnrad auf jedem Screen
 }
-function block(name){ // 'video' | 'quiz' | 'done'
+function block(name){ // 'video' | 'quiz' | 'mess' | 'done'
   $("#blockVideo").style.display = name==="video" ? "block":"none";
   $("#blockQuiz").style.display  = name==="quiz"  ? "block":"none";
+  $("#blockMess").style.display  = name==="mess"  ? "block":"none";
   $("#blockDone").classList.toggle("show", name==="done");
   $("#skipBtn").style.display    = name==="video" ? "block":"none";
 }
+// Nach dem Video: passendes Aufgaben-Format wählen.
+function toTask(){ (ST[stage].typ==="messung") ? toMess() : toQuiz(); }
 
 let actx;
 function tone(f,start,dur,type="triangle",g=.14){
@@ -437,16 +484,17 @@ video.addEventListener("play",  ()=> playHint.classList.remove("show"));
 $(".viewport").addEventListener("click", ()=>{
   if(video.paused){ video.play(); } else { video.pause(); playHint.classList.add("show"); }
 });
-$("#skipBtn").onclick       = ()=> toQuiz();
-$("#videoErrorBtn").onclick = ()=> toQuiz();
-$("#replayBtn").onclick     = ()=>{ block("video"); playVideo(ST[stage].video, toQuiz); };
+$("#skipBtn").onclick       = ()=> toTask();
+$("#videoErrorBtn").onclick = ()=> toTask();
+$("#replayBtn").onclick     = ()=>{ block("video"); playVideo(ST[stage].video, toTask); };
+$("#messReplay").onclick    = ()=>{ const v=ST[stage].video; if(v){ block("video"); playVideo(v, toTask); } };
 
 function enterStation(i){
   stage=i; updateBar(); saveState("station");
   $("#vpLabel").textContent="STATION "+String(i+1).padStart(2,"0");
   block("video");
-  if(ST[i].video) playVideo(ST[i].video, toQuiz);
-  else toQuiz();
+  if(ST[i].video) playVideo(ST[i].video, toTask);
+  else toTask();
 }
 function toQuiz(){
   const r=ST[stage];
@@ -503,13 +551,7 @@ function check(){
   const r=ST[stage];
   if(!typed.trim()) return;
   if(norm(typed)===norm(r.antwort)){
-    sndOk(); burst(50);
-    const seg=document.querySelectorAll(".seg")[stage];
-    seg.classList.remove("current"); seg.classList.add("done");
-    const last = stage===ST.length-1;
-    $("#doneMsg").textContent = last ? "Alle Stationen gelöst!" : "Auf zur nächsten Station.";
-    $("#nextBtn").textContent = last ? "🏆 Auflösung" : "Weiter ▶";
-    block("done");
+    sndOk(); burst(50); markStationDone();
   }else{
     sndNo();
     const d=$("#display"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
@@ -517,6 +559,88 @@ function check(){
   }
 }
 $("#nextBtn").onclick = ()=>{ if(stage===ST.length-1) goFinal(); else enterStation(stage+1); };
+
+// Gemeinsam: Station als gelöst markieren und "Weiter"-Ansicht zeigen.
+function markStationDone(){
+  const seg=document.querySelectorAll(".seg")[stage];
+  if(seg){ seg.classList.remove("current"); seg.classList.add("done"); }
+  const last = stage===ST.length-1;
+  $("#doneMsg").textContent = last ? "Alle Stationen gelöst!" : "Auf zur nächsten Station.";
+  $("#nextBtn").textContent = last ? "🏆 Auflösung" : "Weiter ▶";
+  block("done");
+}
+
+/* ---------- Mess-Station (6 Bild-Kontakte -> Nummern 1–16) ---------- */
+let messIdx=0, messTyped="";
+function toMess(){
+  const r=ST[stage];
+  $("#messTitle").textContent="Station "+(stage+1)+": "+r.titel;
+  $("#messQ").textContent=r.frage || "Welche Nummer gehört zu jedem Bild?";
+  messIdx=0; messTyped="";
+  buildMessTiles(r);
+  buildMessKeyboard();
+  renderMessDisplay();
+  $("#messFeedback").textContent=""; $("#messFeedback").className="feedback";
+  updateMessActive();
+  block("mess");
+}
+function buildMessTiles(r){
+  const box=$("#messTiles"); box.innerHTML="";
+  r.kontakte.forEach((k,i)=>{
+    const t=document.createElement("div"); t.className="mtile"; t.dataset.i=i;
+    const num=document.createElement("div"); num.className="mtile-num"; num.textContent=i+1;
+    const img=document.createElement("img"); img.src=k.bild; img.alt="Bild "+(i+1); img.draggable=false;
+    const badge=document.createElement("div"); badge.className="mtile-badge";
+    t.appendChild(num); t.appendChild(img); t.appendChild(badge);
+    box.appendChild(t);
+  });
+}
+function updateMessActive(){
+  document.querySelectorAll(".mtile").forEach((t,i)=>{
+    if(!t.classList.contains("done")) t.classList.toggle("active", i===messIdx);
+  });
+}
+function renderMessDisplay(){
+  $("#messDisplay").innerHTML = messTyped
+    ? `<span>${messTyped}</span>`
+    : `<span class="ph">Nummer …</span>`;
+}
+function messAdd(c){ if(messTyped.length<2){ messTyped+=c; renderMessDisplay(); } }
+function messDel(){ messTyped=messTyped.slice(0,-1); renderMessDisplay(); }
+function buildMessKeyboard(){
+  const kb=$("#messKeyboard"); kb.innerHTML=""; kb.classList.add("numpad");
+  const mk=(label,fn,cls="")=>{ const b=document.createElement("button");
+    b.className="key "+cls; b.type="button"; b.textContent=label;
+    b.addEventListener("click", ()=>{ initAudio(); fn(); }); return b; };
+  const row=()=>{ const r=document.createElement("div"); r.className="krow"; return r; };
+  [["1","2","3"],["4","5","6"],["7","8","9"]].forEach(rw=>{
+    const r=row(); rw.forEach(k=>r.appendChild(mk(k,()=>messAdd(k)))); kb.appendChild(r);
+  });
+  const r=row();
+  r.appendChild(mk("⌫", messDel));
+  r.appendChild(mk("0", ()=>messAdd("0")));
+  r.appendChild(mk("✓", messCheck, "key--check"));
+  kb.appendChild(r);
+}
+function messCheck(){
+  const r=ST[stage], k=r.kontakte[messIdx];
+  if(!messTyped) return;
+  if(parseInt(messTyped,10)===k.nr){
+    sndOk(); burst(30);
+    const tile=document.querySelectorAll(".mtile")[messIdx];
+    tile.classList.remove("active"); tile.classList.add("done");
+    tile.querySelector(".mtile-badge").textContent="✓ "+k.nr;
+    messIdx++; messTyped=""; renderMessDisplay();
+    $("#messFeedback").textContent=""; $("#messFeedback").className="feedback";
+    if(messIdx>=r.kontakte.length){ burst(50); markStationDone(); }
+    else updateMessActive();
+  }else{
+    sndNo();
+    const d=$("#messDisplay"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
+    const fb=$("#messFeedback"); fb.textContent="Leider falsch – nochmal messen. 🔎"; fb.className="feedback no";
+    messTyped=""; renderMessDisplay();
+  }
+}
 
 function goFinal(){
   saveState("final");

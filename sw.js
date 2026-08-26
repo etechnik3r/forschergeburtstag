@@ -3,7 +3,7 @@
    Strategie: Kern-Dateien beim Installieren vorladen, alles andere
    (auch die Videos) beim ersten Abruf in den Cache legen -> danach offline. */
 
-const CACHE = "forscher-v2";
+const CACHE = "forscher-v3";
 const CORE = [
   "./",
   "./index.html",
@@ -11,7 +11,13 @@ const CORE = [
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
-  "./favicon.png"
+  "./favicon.png",
+  "./elektro_start_1.png",
+  "./elektro_start_2.png",
+  "./elektro_start_3.png",
+  "./elektro_start_4.png",
+  "./elektro_start_5.png",
+  "./elektro_start_6.png"
 ];
 
 self.addEventListener("install", (e) => {
