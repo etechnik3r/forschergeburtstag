@@ -21,6 +21,15 @@
    Große, klar tippbare Bedienelemente.
    Komplett offline: keine externen Schriften, kein Framework.
    Optimiert für Tablet im Breitbildformat (8–10 Zoll, quer).
+
+   ABLAUF:
+     1) Startknopf
+     2) Professor-Video
+     3) Knopf "Zu den Rätseln"
+     4) Übersicht: alle Rätsel als Knöpfe, frei wählbar,
+        gelöste Rätsel werden grün mit ✓ markiert
+     5) Sind ALLE Rätsel grün -> nach kurzer Zeit erscheint
+        der Abschluss-Knopf
    ============================================================ */
 :root{
   --bg:#171540;
@@ -58,10 +67,12 @@ body{
 
 .stage{position:relative; z-index:1; height:100%; display:flex; align-items:center; justify-content:center; padding:clamp(10px,2.2vh,22px)}
 .screen{display:none; width:100%; max-width:760px}
-/* Die Stationen nutzen im Querformat mehr Breite (Video + große Tasten). */
-#screen-station{max-width:1040px}
+/* Video-, Übersicht- und Rätsel-Screens nutzen im Querformat mehr Breite. */
+#screen-intro,#screen-overview,#screen-puzzle{max-width:1040px}
 .screen.is-active{display:block; animation:in .35s ease both}
 @keyframes in{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+/* Screens mit vielen Elementen dürfen bei Bedarf scrollen. */
+#screen-overview.is-active,#screen-puzzle.is-active{max-height:100%; overflow:auto}
 
 .console{
   background:linear-gradient(180deg,var(--panel-2),var(--panel));
@@ -85,26 +96,22 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .btn:focus-visible{outline:3px solid var(--info); outline-offset:3px}
 .btn--go{background:var(--primary); color:var(--on-primary); border-color:transparent; font-size:clamp(20px,5vw,30px); padding:22px 40px}
 .btn--amber{background:var(--amber); color:var(--on-amber); border-color:transparent}
+.btn--ok{background:var(--ok); color:var(--on-ok); border-color:transparent}
 .btn-row{display:flex; flex-wrap:wrap; justify-content:center}
+/* Rot aufblitzen, wenn eine Prüfung falsch war. */
+.flash-no{animation:flashNo .55s}
+@keyframes flashNo{0%,100%{filter:none}25%,75%{background:var(--no); color:#fff; filter:none}}
 
 .ghost{position:fixed; z-index:40; background:rgba(10,8,30,.55); color:var(--ink);
        border:1px solid var(--edge); font-family:var(--mono); font-size:13px; letter-spacing:.08em;
        cursor:pointer; padding:10px 16px; border-radius:12px; backdrop-filter:blur(4px)}
 .ghost:active{transform:translateY(2px)}
-/* Unten rechts – kollidiert nicht mehr mit den Level-Anzeigen oben. */
+/* Unten rechts – kollidiert nicht mit den anderen Bedienelementen. */
 #skipBtn{right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom)); display:none}
 #restartBtn{right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom)); display:none}
 
 .missionbar{display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap}
-.missionbar .title{flex:1 1 auto}
-.segs{display:flex; gap:8px; margin-left:auto}
-.seg{width:44px; height:40px; border-radius:10px; border:1px solid var(--edge); background:var(--panel-2);
-     display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:15px; color:var(--muted); position:relative}
-.seg.current{border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.18); animation:pulse 1.6s ease-in-out infinite}
-.seg.done{border-color:var(--ok); color:var(--on-ok); background:var(--ok)}
-.seg.done::after{content:"✓"; font-weight:700}
-.seg.done span{display:none}
-@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,182,46,.06)}}
+.missionbar .title{flex:1 1 auto; min-width:0}
 
 .viewport{position:relative; border-radius:14px; overflow:hidden; background:#000; border:1px solid var(--edge);
           aspect-ratio:16/9; max-height:54vh; margin:0 auto; box-shadow:inset 0 0 0 1px rgba(139,108,255,.14)}
@@ -117,25 +124,51 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .vp-label{position:absolute; z-index:3; top:12px; left:14px; font-family:var(--mono); font-size:12px;
           letter-spacing:.16em; color:var(--info); background:rgba(0,0,0,.4); padding:3px 8px; border-radius:6px}
 .video-note{color:var(--muted); font-family:var(--mono); font-size:13px; text-align:center; margin-top:10px}
-.video-error{display:none; text-align:center; padding:26px}
+.video-error{display:none; text-align:center; padding:20px 6px 4px}
 .video-error.show{display:block}
 
-.task-head{display:flex; align-items:baseline; gap:12px; margin-bottom:4px; flex-wrap:wrap}
-.task-title{font-size:clamp(20px,4.4vw,28px); font-weight:700}
-.task-q{color:var(--muted); font-size:clamp(16px,3.6vw,21px); margin:2px 0 14px; line-height:1.35}
+/* Knopf, der erst nach dem Video (oder bei Fehler) erscheint. */
+.reveal-next{display:none; text-align:center; margin-top:14px}
+.reveal-next.show{display:block; animation:in .4s ease both}
+
+/* ---------- Rätsel-Übersicht ---------- */
+.raetsel-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin:10px 0 6px}
+.rcard{position:relative; border:1px solid var(--edge); border-radius:16px; background:var(--panel-2); color:var(--ink);
+  padding:18px 16px; cursor:pointer; text-align:left; display:flex; align-items:center; gap:14px; width:100%;
+  font-family:var(--sans); box-shadow:0 4px 0 rgba(0,0,0,.35); transition:transform .07s, box-shadow .15s, border-color .2s}
+.rcard:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.35)}
+.rcard .rnum{width:48px; height:48px; flex:0 0 auto; border-radius:12px; background:var(--primary); color:#fff;
+  font-family:var(--mono); font-weight:700; font-size:22px; display:flex; align-items:center; justify-content:center}
+.rcard .rmeta{flex:1 1 auto; min-width:0}
+.rcard .rtitle{font-weight:700; font-size:19px; line-height:1.15}
+.rcard .rstatus{font-family:var(--mono); font-size:13px; color:var(--muted); margin-top:3px}
+.rcard.done{border-color:var(--ok); background:linear-gradient(180deg,#1a4231,#123726)}
+.rcard.done .rnum{background:var(--ok); color:var(--on-ok)}
+.rcard.done .rstatus{color:var(--ok)}
+.rcard .rcheck{position:absolute; top:9px; right:12px; color:var(--ok); font-size:24px; font-weight:700; display:none}
+.rcard.done .rcheck{display:block}
+.ov-progress{display:flex; align-items:center; gap:10px}
+.ov-bar{flex:1 1 auto; height:12px; border-radius:8px; background:var(--panel-2); border:1px solid var(--edge); overflow:hidden}
+.ov-bar i{display:block; height:100%; width:0; background:var(--ok); border-radius:8px; transition:width .5s ease}
+
+/* Abschluss-Knopf: erst wenn ALLE Rätsel gelöst sind. */
+.final-reveal{display:none; text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--edge)}
+.final-reveal.show{display:block; animation:in .5s ease both}
+
+/* ---------- Rätsel-Ansicht ---------- */
+.back-btn{padding:11px 18px; font-size:16px; margin:0}
+.task-q{color:var(--muted); font-size:clamp(16px,3.6vw,21px); margin:6px 0 14px; line-height:1.35}
 
 .display{min-height:66px; background:#0a1119; border:1px solid var(--edge); border-radius:14px;
-  display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 14px;
+  display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 14px; flex-wrap:wrap;
   font-family:var(--mono); font-size:clamp(26px,7vw,42px); letter-spacing:6px; color:var(--info)}
 .display.shake{animation:shake .4s}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px)}
   40%{transform:translateX(12px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
 .display .ph{color:#3a4a58; letter-spacing:2px; font-size:20px}
 
-.feedback{min-height:26px; font-weight:700; font-size:17px; margin:8px 0 6px; font-family:var(--mono)}
+.feedback{min-height:26px; font-weight:700; font-size:17px; margin:8px 0 6px; font-family:var(--mono); text-align:center}
 .feedback.ok{color:var(--ok)} .feedback.no{color:var(--no)}
-.replay-link{background:none; border:none; color:var(--muted); font-family:var(--mono);
-             font-size:14px; cursor:pointer; text-decoration:underline; padding:6px}
 
 .keyboard{display:flex; flex-direction:column; gap:8px; margin-top:8px}
 .krow{display:flex; gap:7px; justify-content:center}
@@ -148,24 +181,36 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .key--check{flex:2.2 1 0; background:var(--ok); color:var(--on-ok); border-color:transparent}
 .numpad .key{height:clamp(58px,13vw,74px); font-size:clamp(24px,7vw,32px); max-width:none}
 
-/* Mess-Station: sechs Bild-Kontakte nebeneinander */
-.mess-tiles{display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:8px 0 12px}
-.mtile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff;
-  padding:8px 6px 6px; display:flex; flex-direction:column; align-items:center; gap:4px;
-  transition:transform .12s, box-shadow .15s; opacity:.55}
-.mtile img{width:100%; height:clamp(46px,8.5vw,88px); object-fit:contain; display:block}
-.mtile-num{position:absolute; top:-10px; left:-8px; width:26px; height:26px; border-radius:50%;
+/* ---------- Strom-Rätsel: 4 Bilder -> je eine Zahl (1–16) ---------- */
+.zu-tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:8px 0 12px}
+.ztile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff; padding:8px 6px 8px;
+  display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer;
+  transition:box-shadow .15s, border-color .2s, background .2s; opacity:.85}
+.ztile img{width:100%; height:clamp(58px,12vw,104px); object-fit:contain; display:block}
+.ztile-num{position:absolute; top:-10px; left:-8px; width:26px; height:26px; border-radius:50%;
   background:var(--panel-2); border:1px solid var(--edge); color:var(--muted); font-family:var(--mono);
   font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center}
-.mtile-badge{font-family:var(--mono); font-weight:700; font-size:15px; color:#5a5f8a; min-height:19px}
-.mtile.active{opacity:1; border-color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.28)}
-.mtile.active .mtile-num{background:var(--amber); color:var(--on-amber); border-color:transparent}
-.mtile.done{opacity:1; border-color:var(--ok); background:#e6fff1}
-.mtile.done .mtile-num{background:var(--ok); color:var(--on-ok); border-color:transparent}
-.mtile.done .mtile-badge{color:var(--on-ok)}
+.zin{width:100%; height:42px; border-radius:10px; border:1px solid #b8bce0; background:#fff; color:#1c2233;
+  font-family:var(--mono); font-weight:700; font-size:24px; display:flex; align-items:center; justify-content:center}
+.zin .ph{color:#9aa; font-size:14px; font-weight:400}
+.ztile.active{opacity:1; border-color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.3)}
+.ztile.active .zin{border-color:var(--amber)}
+.ztile.ok{opacity:1; border-color:var(--ok); background:#e6fff1}
+.ztile.bad{opacity:1; border-color:var(--no); background:#ffece9}
 
+/* ---------- Schwimm-Rätsel: Gegenstände anklicken ---------- */
+.obj-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; margin:8px 0 12px}
+.obj{border:1px solid var(--edge); border-radius:14px; background:var(--panel-2); color:var(--ink); cursor:pointer;
+  padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; font-family:var(--sans);
+  font-weight:700; font-size:15px; box-shadow:0 3px 0 rgba(0,0,0,.35); transition:transform .07s, border-color .15s, background .15s}
+.obj .oemoji{font-size:30px; line-height:1}
+.obj:active{transform:translateY(2px)}
+.obj.sel{border-color:var(--info); background:#1c3350; box-shadow:0 0 0 3px rgba(91,157,255,.25)}
+.check-row{text-align:center; margin-top:4px}
+
+/* Gelöst-Ansicht innerhalb eines Rätsels */
 .done-view{display:none; text-align:center; padding:18px 6px}
-.done-view.show{display:block}
+.done-view.show{display:block; animation:in .4s ease both}
 .done-view .stamp{font-family:var(--mono); font-size:clamp(28px,8vw,46px); color:var(--ok); letter-spacing:.1em; margin-bottom:8px}
 
 .reveal{display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:8px 0 18px}
@@ -215,15 +260,14 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .chapters button{padding:13px 8px; border-radius:12px; border:1px solid var(--edge); background:var(--panel-2);
   color:var(--ink); font-weight:700; font-size:15px; cursor:pointer; font-family:var(--sans); text-align:center}
 .chapters button:active{transform:translateY(2px)}
-.chapters button.cur{border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 2px rgba(255,182,46,.15)}
+.chapters button.done{border-color:var(--ok); color:var(--ok)}
 
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001s !important; transition-duration:.05s !important}
   .viewport::before{display:none}
 }
 
-/* Tablet im Querformat: kompakter, damit Video + Frage + Tastatur
-   ohne Scrollen auf einen Blick passen. */
+/* Tablet im Querformat: kompakter, damit alles ohne viel Scrollen passt. */
 @media (orientation:landscape) and (max-height:820px){
   .console{padding:16px}
   .missionbar{margin-bottom:10px}
@@ -266,7 +310,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
       <button class="btn opt" id="installBtn">📲 Als App installieren</button>
       <p class="opt-note" id="installNote">Öffne die Seite in Chrome auf dem Tablet, um sie als App zu installieren.</p>
 
-      <div class="opt-sep">Kapitel anspringen</div>
+      <div class="opt-sep">Direkt anspringen</div>
       <div class="chapters" id="chapters"></div>
 
       <div class="opt-sep">Spielstand</div>
@@ -280,69 +324,105 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 
 <div class="stage">
 
+  <!-- 1) START -->
   <section class="screen is-active" id="screen-start">
     <div class="console center">
       <div class="eyebrow">Labor-Konsole · Zugang</div>
       <h1 id="mName">FORSCHER-MISSION</h1>
       <p class="lead" id="mLead">Professor Dr. Dr. Albrecht Zweistein braucht dein Team.</p>
-      <button class="btn btn--go" id="startBtn">▶ Mission starten</button>
+      <button class="btn btn--go" id="startBtn">▶ Start</button>
     </div>
   </section>
 
-  <section class="screen" id="screen-station">
+  <!-- 2) PROFESSOR-VIDEO -->
+  <section class="screen" id="screen-intro">
     <div class="console">
       <div class="missionbar">
         <div class="title">
-          <div class="eyebrow">Mission</div>
-          <div class="readout" id="barName">FORSCHER-MISSION</div>
-        </div>
-        <div class="segs" id="segs"></div>
-      </div>
-
-      <div id="blockVideo">
-        <div class="viewport">
-          <div class="vp-label" id="vpLabel">STATION 01</div>
-          <video id="video" playsinline preload="auto"></video>
-          <div class="play-hint" id="playHint">▶️</div>
-        </div>
-        <div class="video-note">Schaut genau zu – danach müsst ihr experimentieren.</div>
-        <div class="video-error" id="videoError">
-          <p class="lead">🎬 Video nicht gefunden. Ihr könnt trotzdem weitermachen.</p>
-          <button class="btn btn--go" id="videoErrorBtn">Weiter zur Aufgabe →</button>
+          <div class="eyebrow">Nachricht von</div>
+          <div class="readout">PROF. DR. DR. ZWEISTEIN</div>
         </div>
       </div>
-
-      <div id="blockQuiz" style="display:none">
-        <div class="task-head">
-          <div class="task-title" id="tTitle">Aufgabe</div>
-          <button class="replay-link" id="replayBtn">🔁 Anweisung nochmal</button>
-        </div>
-        <div class="task-q" id="tQ">Frage</div>
-        <div class="display" id="display"></div>
-        <div class="feedback" id="feedback"></div>
-        <div class="keyboard" id="keyboard"></div>
+      <div class="viewport">
+        <div class="vp-label">ÜBERTRAGUNG</div>
+        <video id="introVideo" playsinline preload="auto"></video>
+        <div class="play-hint" id="introPlayHint">▶️</div>
       </div>
-
-      <div id="blockMess" style="display:none">
-        <div class="task-head">
-          <div class="task-title" id="messTitle">Messstation</div>
-          <button class="replay-link" id="messReplay">🔁 Anweisung nochmal</button>
-        </div>
-        <div class="task-q" id="messQ">Frage</div>
-        <div class="mess-tiles" id="messTiles"></div>
-        <div class="display" id="messDisplay"></div>
-        <div class="feedback" id="messFeedback"></div>
-        <div class="keyboard" id="messKeyboard"></div>
+      <div class="video-note">Schaut genau zu, was der Professor euch aufträgt.</div>
+      <div class="video-error" id="introError">
+        <p class="lead">🎬 Video nicht gefunden. Ihr könnt trotzdem weitermachen.</p>
       </div>
-
-      <div id="blockDone" class="done-view">
-        <div class="stamp">✓ RICHTIG</div>
-        <p class="lead" id="doneMsg">Weiter geht’s!</p>
-        <button class="btn btn--go" id="nextBtn">Weiter ▶</button>
+      <!-- Erscheint erst, wenn das Video zu Ende ist. -->
+      <div class="reveal-next" id="introNext">
+        <button class="btn btn--go" id="toPuzzlesBtn">Zu den Rätseln ▶</button>
       </div>
     </div>
   </section>
 
+  <!-- 3) ÜBERSICHT: alle Rätsel als Knöpfe, frei wählbar -->
+  <section class="screen" id="screen-overview">
+    <div class="console">
+      <div class="missionbar">
+        <div class="title">
+          <div class="eyebrow">Rätsel-Labor</div>
+          <div class="readout" id="ovCount">0 / 0 gelöst</div>
+        </div>
+      </div>
+      <p class="lead center">Wählt ein Rätsel – ihr könnt sie in beliebiger Reihenfolge lösen.</p>
+      <div class="ov-progress"><div class="ov-bar"><i id="ovBar"></i></div></div>
+      <div class="raetsel-grid" id="raetselGrid"></div>
+
+      <!-- Erscheint erst, wenn ALLE Rätsel gelöst sind. -->
+      <div class="final-reveal" id="finalReveal">
+        <p class="lead">🎉 Alle Rätsel gelöst! Ihr habt es geschafft.</p>
+        <button class="btn btn--amber" id="toFinalBtn">🏆 Zum Abschluss</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4) EINZELNES RÄTSEL -->
+  <section class="screen" id="screen-puzzle">
+    <div class="console">
+      <div class="missionbar">
+        <button class="btn back-btn" id="backBtn">← Übersicht</button>
+        <div class="title">
+          <div class="eyebrow">Rätsel</div>
+          <div class="readout" id="pTitle">Rätsel</div>
+        </div>
+      </div>
+      <div class="task-q" id="pQ">Frage</div>
+
+      <!-- Typ: eingabe (Text ODER Zahl über die Tastatur) -->
+      <div id="pEingabe" style="display:none">
+        <div class="display" id="pDisplay"></div>
+        <div class="feedback" id="pFeedback"></div>
+        <div class="keyboard" id="pKeyboard"></div>
+      </div>
+
+      <!-- Typ: zuordnung (Strom: 4 Bilder -> je eine Zahl 1–16) -->
+      <div id="pZuordnung" style="display:none">
+        <div class="zu-tiles" id="zuTiles"></div>
+        <div class="feedback" id="zuFeedback"></div>
+        <div class="keyboard" id="zuKeyboard"></div>
+      </div>
+
+      <!-- Typ: mehrfach (Schwimmen: mehrere Gegenstände anklicken) -->
+      <div id="pMehrfach" style="display:none">
+        <div class="obj-grid" id="objGrid"></div>
+        <div class="feedback" id="mfFeedback"></div>
+        <div class="check-row"><button class="btn btn--ok" id="mfCheck">✓ Prüfen</button></div>
+      </div>
+
+      <!-- Rätsel gelöst -->
+      <div id="pSolved" class="done-view">
+        <div class="stamp">✓ GELÖST</div>
+        <p class="lead">Super gemacht!</p>
+        <button class="btn btn--go" id="pBackToOv">Zur Übersicht ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5) ABSCHLUSS -->
   <section class="screen" id="screen-final">
     <div class="console center">
       <div class="eyebrow">Mission erfüllt</div>
@@ -362,34 +442,94 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 /* ================================================================
    ▼▼▼  NUR DIESEN BLOCK ANPASSEN  ▼▼▼
    ================================================================
-   Jede Station = ein Video + eine Aufgabe.
-   Ablauf: Video 1 → Aufgabe 1 → (richtig) → Video 2 → Aufgabe 2 → … → Finale.
-   Videos als MP4 (H.264 + AAC) in DENSELBEN Ordner wie diese HTML-Datei legen.
-   Ist die Antwort eine reine Zahl, erscheint automatisch ein großes Zahlenfeld.
+   Ablauf:
+     Start → Professor-Video → Rätsel-Übersicht (frei wählbar) → Abschluss.
+   Jedes gelöste Rätsel wird in der Übersicht grün mit ✓ markiert.
+   Sind ALLE Rätsel gelöst, erscheint nach kurzer Zeit der Abschluss-Knopf.
+
+   Videos als MP4 (H.264 + AAC) in DENSELBEN Ordner wie diese Datei legen.
+
+   Rätsel-Typen:
+     "zuordnung" – mehrere Bilder, hinter jedes eine Zahl (z. B. 1–16).
+     "text"      – Buchstaben-Antwort über die Tastatur.
+     "zahl"      – Zahlen-Antwort über das Zahlenfeld.
+     "mehrfach"  – mehrere Gegenstände anklicken; erst wenn GENAU die
+                   richtigen ausgewählt sind, zählt das Rätsel als gelöst.
+
+   HINWEIS zu den Lösungen: Einige Zahlen/Antworten sind noch Platzhalter
+   (mit  // TODO  markiert) – bitte die echten Werte eintragen.
 ================================================================= */
 const CONFIG = {
-  missionsName: "",   // leer = kein Titel-Text (Start & Missionsleiste bleiben ohne Überschrift)
+  missionsName: "",   // leer = kein Titel-Text
   einleitung:   "Professor Dr. Dr. Albrecht Zweistein braucht dein Team im Labor.",
 
-  stationen: [
-    { titel:"Der Zaubertrank", video:"station-1.mp4", frage:"Welche Farbe hatte das Wasser?",  antwort:"BLAU" },
-    { titel:"Der Magnet",      video:"station-2.mp4", frage:"Wie viele Büroklammern klebten?", antwort:"7"    },
-    { titel:"Der Vulkan",      video:"station-3.mp4", frage:"Wie heißt das sprudelnde Gas?",    antwort:"CO2"  },
+  // Video des Professors, das nach dem Start abgespielt wird.
+  professorVideo: "professor-intro.mp4",
 
-    // MESS-STATION: 6 Bilder = Messkontakte. Jedes Kind misst per
-    // Durchgangsprüfung, welche Kontakt-Nummer (1–16) zum Bild gehört.
-    // Von links nach rechts: Nummer eintippen, mit ✓ bestätigen.
-    // Passe unten nur die "nr" an die echte Verdrahtung an.
-    { titel:"Die Messstation", video:"", typ:"messung",
-      frage:"Miss mit dem Prüfstift: Welche Nummer (1–16) gehört zu jedem Bild?",
-      kontakte:[
-        { bild:"elektro_start_1.png", nr:14 },
-        { bild:"elektro_start_2.png", nr:3  },
-        { bild:"elektro_start_3.png", nr:9  },
-        { bild:"elektro_start_4.png", nr:16 },
-        { bild:"elektro_start_5.png", nr:5  },
-        { bild:"elektro_start_6.png", nr:11 }
+  raetsel: [
+
+    /* --- Rätsel 1: Strom-Rätsel -------------------------------------
+       Vier Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 16.
+       Kind tippt ein Bild an, gibt die Zahl ein, dann "✓ Prüfen".
+       -> die vier echten Bilder + Lösungszahlen hier eintragen.        */
+    { id:"strom", nr:1, titel:"Stromkreis", typ:"zuordnung",
+      frage:"Miss den Stromkreis: Welche Zahl (1–16) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
+      bilder:[
+        { bild:"elektro_start_1.png", nr:14 },  // TODO: echtes Bild + Zahl
+        { bild:"elektro_start_2.png", nr:3  },  // TODO: echtes Bild + Zahl
+        { bild:"elektro_start_3.png", nr:9  },  // TODO: echtes Bild + Zahl
+        { bild:"elektro_start_4.png", nr:16 }   // TODO: echtes Bild + Zahl
       ]
+    },
+
+    /* --- Rätsel 2: Strukturformeln ----------------------------------
+       Eine Karteikarte zeigt eine Strukturformel, die NICHT auf dem
+       Plakat/Skizzen an der Wand vorkommt. Lösung: Ameisensäure.        */
+    { id:"struktur", nr:2, titel:"Strukturformeln", typ:"text",
+      frage:"Welche Strukturformel findet ihr auf den Karteikarten von Doktor Zweistein, aber nicht auf seinen Skizzen an der Wand?",
+      antwort:"Ameisensäure"
+    },
+
+    /* --- Rätsel 3: Schwimmen ----------------------------------------
+       Welche Gegenstände schwimmen? Kinder wählen alle richtigen aus.
+       Erst wenn GENAU die schwimmenden ausgewählt sind (und "Prüfen"
+       gedrückt wurde), gilt das Rätsel als gelöst.
+       schwimmt:true = schwimmt.  -> Liste bei Bedarf anpassen.          */
+    { id:"schwimmen", nr:3, titel:"Schwimmt es?", typ:"mehrfach",
+      frage:"Welche Gegenstände schwimmen im Wasser? Wählt alle richtigen aus und drückt dann ✓ Prüfen.",
+      objekte:[
+        { name:"Korken",       emoji:"🟤", schwimmt:true  },
+        { name:"Stein",        emoji:"🪨", schwimmt:false },
+        { name:"Holzklotz",    emoji:"🪵", schwimmt:true  },
+        { name:"Münze",        emoji:"🪙", schwimmt:false },
+        { name:"Apfel",        emoji:"🍎", schwimmt:true  },
+        { name:"Schlüssel",    emoji:"🔑", schwimmt:false },
+        { name:"Gummiente",    emoji:"🦆", schwimmt:true  },
+        { name:"Büroklammer",  emoji:"📎", schwimmt:false },
+        { name:"Blatt",        emoji:"🍃", schwimmt:true  },
+        { name:"Nagel",        emoji:"🔩", schwimmt:false },
+        { name:"Schwamm",      emoji:"🧽", schwimmt:true  },
+        { name:"Murmel",       emoji:"🔵", schwimmt:false },
+        { name:"Feder",        emoji:"🪶", schwimmt:true  },
+        { name:"Löffel",       emoji:"🥄", schwimmt:false },
+        { name:"Plastikball",  emoji:"⚽", schwimmt:true  }
+      ]
+    },
+
+    /* --- Rätsel 4: pH-Werte -----------------------------------------
+       Durchnummerierte Reagenzgläser; gesucht ist die Nummer des
+       Reagenzglases mit dem sauersten pH-Wert.                          */
+    { id:"ph", nr:4, titel:"pH-Werte", typ:"zahl",
+      frage:"Messt die pH-Werte: Das Reagenzglas mit welcher Nummer hat den sauersten pH-Wert?",
+      antwort:"7"   // TODO: echte Reagenzglas-Nummer eintragen
+    },
+
+    /* --- Rätsel 5: Riechen ------------------------------------------
+       Drei nummerierte Dosen in die richtige Reihenfolge bringen.
+       Eingabe: die dreistellige Zahl (Reihenfolge der Dosen-Nummern).  */
+    { id:"riechen", nr:5, titel:"Die Geruchsprobe", typ:"zahl",
+      frage:"Riecht an den drei nummerierten Dosen und bringt sie in die richtige Reihenfolge. Gebt die dreistellige Zahl ein.",
+      antwort:"231"   // TODO: echte Reihenfolge eintragen
     }
   ],
 
@@ -402,26 +542,22 @@ const CONFIG = {
 ================================================================= */
 
 const $  = s => document.querySelector(s);
-const ST = CONFIG.stationen;
+const RS = CONFIG.raetsel;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-let stage = 0, typed = "";
+
+/* Fortschritt: Menge gelöster Rätsel-IDs. */
+let solved = new Set();
+let curIdx = -1;          // aktuell geöffnetes Rätsel
 
 function show(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("is-active"));
   $("#"+id).classList.add("is-active");
   $("#restartBtn").style.display = (id==="screen-final") ? "block" : "none";
-  $("#gearBtn").style.display    = "block";   // Zahnrad auf jedem Screen
+  $("#skipBtn").style.display    = (id==="screen-intro") ? "block" : "none";
+  $("#gearBtn").style.display    = "block";
 }
-function block(name){ // 'video' | 'quiz' | 'mess' | 'done'
-  $("#blockVideo").style.display = name==="video" ? "block":"none";
-  $("#blockQuiz").style.display  = name==="quiz"  ? "block":"none";
-  $("#blockMess").style.display  = name==="mess"  ? "block":"none";
-  $("#blockDone").classList.toggle("show", name==="done");
-  $("#skipBtn").style.display    = name==="video" ? "block":"none";
-}
-// Nach dem Video: passendes Aufgaben-Format wählen.
-function toTask(){ (ST[stage].typ==="messung") ? toMess() : toQuiz(); }
 
+/* ---------------- Ton & Konfetti ---------------- */
 let actx;
 function tone(f,start,dur,type="triangle",g=.14){
   if(!actx) return;
@@ -457,66 +593,122 @@ function l(){
   raf = parts.length ? requestAnimationFrame(l) : null;
   if(!parts.length) cx.clearRect(0,0,cvs.width,cvs.height);
 }
+function flashNo(el){ el.classList.remove("flash-no"); void el.offsetWidth; el.classList.add("flash-no"); }
 
-function buildBar(){
-  const box=$("#segs"); box.innerHTML="";
-  ST.forEach((_,i)=>{ const s=document.createElement("div"); s.className="seg";
-    s.innerHTML="<span>"+String(i+1).padStart(2,"0")+"</span>"; box.appendChild(s); });
+/* ---------------- Professor-Video ---------------- */
+const introVideo=$("#introVideo"), introPlayHint=$("#introPlayHint");
+let introEnded=false;
+function playIntro(){
+  introEnded=false;
+  $("#introNext").classList.remove("show");
+  $("#introError").classList.remove("show");
+  if(!CONFIG.professorVideo){ endIntro(); return; }
+  introVideo.style.display="block";
+  introVideo.src=CONFIG.professorVideo; introVideo.load();
+  const p=introVideo.play(); if(p) p.catch(()=>introPlayHint.classList.add("show"));
 }
-function updateBar(){
-  document.querySelectorAll(".seg").forEach((s,i)=>{
-    s.classList.toggle("done", i<stage);
-    s.classList.toggle("current", i===stage);
-  });
+function endIntro(){         // Video zu Ende (oder übersprungen/Fehler) -> Knopf zeigen
+  if(introEnded) return;
+  introEnded=true;
+  $("#introNext").classList.add("show");
 }
-
-const video=$("#video"), playHint=$("#playHint");
-function playVideo(src, onEnd){
-  $("#videoError").classList.remove("show");
-  video.style.display="block";
-  video.src=src; video.load();
-  video._onEnd=onEnd;
-  const p=video.play(); if(p) p.catch(()=>playHint.classList.add("show"));
-}
-video.addEventListener("ended", ()=>{ if(video._onEnd) video._onEnd(); });
-video.addEventListener("error", ()=>{ if(video.src) $("#videoError").classList.add("show"); });
-video.addEventListener("play",  ()=> playHint.classList.remove("show"));
-$(".viewport").addEventListener("click", ()=>{
-  if(video.paused){ video.play(); } else { video.pause(); playHint.classList.add("show"); }
+introVideo.addEventListener("ended", endIntro);
+introVideo.addEventListener("error", ()=>{ if(introVideo.src){ $("#introError").classList.add("show"); endIntro(); } });
+introVideo.addEventListener("play",  ()=> introPlayHint.classList.remove("show"));
+$("#screen-intro .viewport").addEventListener("click", ()=>{
+  if(introVideo.paused){ introVideo.play(); } else { introVideo.pause(); introPlayHint.classList.add("show"); }
 });
-$("#skipBtn").onclick       = ()=> toTask();
-$("#videoErrorBtn").onclick = ()=> toTask();
-$("#replayBtn").onclick     = ()=>{ block("video"); playVideo(ST[stage].video, toTask); };
-$("#messReplay").onclick    = ()=>{ const v=ST[stage].video; if(v){ block("video"); playVideo(v, toTask); } };
+$("#skipBtn").onclick     = endIntro;
+$("#toPuzzlesBtn").onclick = ()=>{ initAudio(); goOverview(); };
 
-function enterStation(i){
-  stage=i; updateBar(); saveState("station");
-  $("#vpLabel").textContent="STATION "+String(i+1).padStart(2,"0");
-  block("video");
-  if(ST[i].video) playVideo(ST[i].video, toTask);
-  else toTask();
+/* ---------------- Übersicht ---------------- */
+function goOverview(){
+  saveState();
+  buildOverview();
+  show("screen-overview");
 }
-function toQuiz(){
-  const r=ST[stage];
-  $("#tTitle").textContent="Station "+(stage+1)+": "+r.titel;
-  $("#tQ").textContent=r.frage;
-  typed=""; renderDisplay();
-  $("#feedback").textContent=""; $("#feedback").className="feedback";
-  buildKeyboard(/^\d+$/.test(String(r.antwort).trim()) ? "num" : "text");
-  block("quiz");
+function buildOverview(){
+  const grid=$("#raetselGrid"); grid.innerHTML="";
+  RS.forEach((r,i)=>{
+    const isDone=solved.has(r.id);
+    const card=document.createElement("button");
+    card.type="button"; card.className="rcard"+(isDone?" done":"");
+    card.innerHTML =
+      `<div class="rnum">${r.nr ?? (i+1)}</div>`+
+      `<div class="rmeta"><div class="rtitle">${r.titel}</div>`+
+      `<div class="rstatus">${isDone?"✓ gelöst":"offen · tippen"}</div></div>`+
+      `<div class="rcheck">✓</div>`;
+    card.onclick=()=>{ initAudio(); openPuzzle(i); };
+    grid.appendChild(card);
+  });
+  const n=solved.size, total=RS.length;
+  $("#ovCount").textContent = n+" / "+total+" gelöst";
+  $("#ovBar").style.width = total ? Math.round(n/total*100)+"%" : "0%";
+
+  // Abschluss-Knopf erst, wenn ALLE Rätsel gelöst sind – nach kurzer Zeit.
+  const fr=$("#finalReveal");
+  if(n===total && total>0){
+    if(!fr.classList.contains("show")){
+      setTimeout(()=>{ fr.classList.add("show"); sndWin(); burst(90); }, 900);
+    }
+  }else{
+    fr.classList.remove("show");
+  }
+}
+$("#backBtn").onclick   = goOverview;
+$("#pBackToOv").onclick = goOverview;
+$("#toFinalBtn").onclick= ()=>{ initAudio(); goFinal(); };
+
+/* ---------------- Ein Rätsel öffnen ---------------- */
+function openPuzzle(i){
+  curIdx=i;
+  const r=RS[i];
+  $("#pTitle").textContent="Rätsel "+(r.nr ?? (i+1))+": "+r.titel;
+  $("#pQ").textContent=r.frage||"";
+  // alle Blöcke ausblenden
+  $("#pEingabe").style.display="none";
+  $("#pZuordnung").style.display="none";
+  $("#pMehrfach").style.display="none";
+  $("#pSolved").classList.remove("show");
+
+  if(r.typ==="zuordnung")      openZuordnung(r);
+  else if(r.typ==="mehrfach")  openMehrfach(r);
+  else                         openEingabe(r);   // "text" & "zahl"
+
+  show("screen-puzzle");
+}
+
+/* Rätsel als gelöst markieren (gemeinsam für alle Typen). */
+function solvePuzzle(){
+  const r=RS[curIdx];
+  solved.add(r.id); saveState();
+  sndOk(); burst(60);
+  $("#pEingabe").style.display="none";
+  $("#pZuordnung").style.display="none";
+  $("#pMehrfach").style.display="none";
+  $("#pSolved").classList.add("show");
 }
 
 const norm = s => s.toString().toUpperCase().replace(/\s+/g," ").trim();
-function renderDisplay(){
-  $("#display").innerHTML = typed
+
+/* ---------- Typ "text" / "zahl": Tastatur-Eingabe ---------- */
+let typed="";
+function openEingabe(r){
+  typed=""; renderEingabe();
+  $("#pFeedback").textContent=""; $("#pFeedback").className="feedback";
+  const numeric = r.typ==="zahl" || /^\d+$/.test(String(r.antwort).trim());
+  buildKeyboard(numeric ? "num" : "text");
+  $("#pEingabe").style.display="block";
+}
+function renderEingabe(){
+  $("#pDisplay").innerHTML = typed
     ? typed.split("").map(c=>`<span>${c}</span>`).join("")
     : `<span class="ph">tippe hier …</span>`;
 }
-function addChar(c){ if(typed.length<16){ typed+=c; renderDisplay(); } }
-function delChar(){ typed=typed.slice(0,-1); renderDisplay(); }
-
+function addChar(c){ if(typed.length<20){ typed+=c; renderEingabe(); } }
+function delChar(){ typed=typed.slice(0,-1); renderEingabe(); }
 function buildKeyboard(mode){
-  const kb=$("#keyboard"); kb.innerHTML=""; kb.classList.toggle("numpad", mode==="num");
+  const kb=$("#pKeyboard"); kb.innerHTML=""; kb.classList.toggle("numpad", mode==="num");
   const mk=(label,fn,cls="")=>{ const b=document.createElement("button");
     b.className="key "+cls; b.type="button"; b.textContent=label;
     b.addEventListener("click", ()=>{ initAudio(); fn(); }); return b; };
@@ -529,7 +721,7 @@ function buildKeyboard(mode){
     const r=row();
     r.appendChild(mk("⌫", delChar));
     r.appendChild(mk("0", ()=>addChar("0")));
-    r.appendChild(mk("✓", check, "key--check"));
+    r.appendChild(mk("✓", checkEingabe, "key--check"));
     kb.appendChild(r);
     return;
   }
@@ -543,107 +735,145 @@ function buildKeyboard(mode){
   const last=row();
   last.appendChild(mk("␣ Leer", ()=>addChar(" "), "key--wide"));
   last.appendChild(mk("⌫", delChar, "key--wide"));
-  last.appendChild(mk("✓ Prüfen", check, "key--check"));
+  last.appendChild(mk("✓ Prüfen", checkEingabe, "key--check"));
   kb.appendChild(last);
 }
-
-function check(){
-  const r=ST[stage];
+function checkEingabe(){
+  const r=RS[curIdx];
   if(!typed.trim()) return;
   if(norm(typed)===norm(r.antwort)){
-    sndOk(); burst(50); markStationDone();
+    solvePuzzle();
   }else{
     sndNo();
-    const d=$("#display"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
-    const fb=$("#feedback"); fb.textContent="Leider falsch – schaut nochmal genau hin. 🔎"; fb.className="feedback no";
+    const d=$("#pDisplay"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
+    const chk=$("#pKeyboard .key--check"); if(chk) flashNo(chk);
+    const fb=$("#pFeedback"); fb.textContent="Leider falsch – schaut nochmal genau hin. 🔎"; fb.className="feedback no";
   }
 }
-$("#nextBtn").onclick = ()=>{ if(stage===ST.length-1) goFinal(); else enterStation(stage+1); };
 
-// Gemeinsam: Station als gelöst markieren und "Weiter"-Ansicht zeigen.
-function markStationDone(){
-  const seg=document.querySelectorAll(".seg")[stage];
-  if(seg){ seg.classList.remove("current"); seg.classList.add("done"); }
-  const last = stage===ST.length-1;
-  $("#doneMsg").textContent = last ? "Alle Stationen gelöst!" : "Auf zur nächsten Station.";
-  $("#nextBtn").textContent = last ? "🏆 Auflösung" : "Weiter ▶";
-  block("done");
+/* ---------- Typ "zuordnung": Strom-Rätsel (Bilder -> Zahlen) ---------- */
+let zuActive=0, zuVals=[];
+function openZuordnung(r){
+  zuActive=0; zuVals=r.bilder.map(()=> "");
+  buildZuTiles(r);
+  buildZuKeyboard();
+  $("#zuFeedback").textContent=""; $("#zuFeedback").className="feedback";
+  $("#pZuordnung").style.display="block";
 }
-
-/* ---------- Mess-Station (6 Bild-Kontakte -> Nummern 1–16) ---------- */
-let messIdx=0, messTyped="";
-function toMess(){
-  const r=ST[stage];
-  $("#messTitle").textContent="Station "+(stage+1)+": "+r.titel;
-  $("#messQ").textContent=r.frage || "Welche Nummer gehört zu jedem Bild?";
-  messIdx=0; messTyped="";
-  buildMessTiles(r);
-  buildMessKeyboard();
-  renderMessDisplay();
-  $("#messFeedback").textContent=""; $("#messFeedback").className="feedback";
-  updateMessActive();
-  block("mess");
-}
-function buildMessTiles(r){
-  const box=$("#messTiles"); box.innerHTML="";
-  r.kontakte.forEach((k,i)=>{
-    const t=document.createElement("div"); t.className="mtile"; t.dataset.i=i;
-    const num=document.createElement("div"); num.className="mtile-num"; num.textContent=i+1;
-    const img=document.createElement("img"); img.src=k.bild; img.alt="Bild "+(i+1); img.draggable=false;
-    const badge=document.createElement("div"); badge.className="mtile-badge";
-    t.appendChild(num); t.appendChild(img); t.appendChild(badge);
+function buildZuTiles(r){
+  const box=$("#zuTiles"); box.innerHTML="";
+  r.bilder.forEach((b,i)=>{
+    const t=document.createElement("div"); t.className="ztile"; t.dataset.i=i;
+    const num=document.createElement("div"); num.className="ztile-num"; num.textContent=i+1;
+    const img=document.createElement("img"); img.src=b.bild; img.alt="Bild "+(i+1); img.draggable=false;
+    const zin=document.createElement("div"); zin.className="zin";
+    t.appendChild(num); t.appendChild(img); t.appendChild(zin);
+    t.addEventListener("click", ()=>{ initAudio(); setZuActive(i); });
     box.appendChild(t);
   });
+  setZuActive(0);
+  renderZu();
 }
-function updateMessActive(){
-  document.querySelectorAll(".mtile").forEach((t,i)=>{
-    if(!t.classList.contains("done")) t.classList.toggle("active", i===messIdx);
+function setZuActive(i){
+  zuActive=i;
+  document.querySelectorAll(".ztile").forEach((t,k)=>{
+    t.classList.toggle("active", k===i);
+    t.classList.remove("ok","bad");
   });
 }
-function renderMessDisplay(){
-  $("#messDisplay").innerHTML = messTyped
-    ? `<span>${messTyped}</span>`
-    : `<span class="ph">Nummer …</span>`;
+function renderZu(){
+  document.querySelectorAll(".ztile .zin").forEach((zin,i)=>{
+    zin.innerHTML = zuVals[i] ? `<span>${zuVals[i]}</span>` : `<span class="ph">?</span>`;
+  });
 }
-function messAdd(c){ if(messTyped.length<2){ messTyped+=c; renderMessDisplay(); } }
-function messDel(){ messTyped=messTyped.slice(0,-1); renderMessDisplay(); }
-function buildMessKeyboard(){
-  const kb=$("#messKeyboard"); kb.innerHTML=""; kb.classList.add("numpad");
+function zuAdd(c){
+  let v=zuVals[zuActive]+c;
+  if(v.length>2) return;
+  if(parseInt(v,10)>16) return;          // nur 1–16 zulassen
+  zuVals[zuActive]=v; renderZu();
+  document.querySelectorAll(".ztile")[zuActive].classList.remove("ok","bad");
+}
+function zuDel(){ zuVals[zuActive]=zuVals[zuActive].slice(0,-1); renderZu(); }
+function buildZuKeyboard(){
+  const kb=$("#zuKeyboard"); kb.innerHTML=""; kb.classList.add("numpad");
   const mk=(label,fn,cls="")=>{ const b=document.createElement("button");
     b.className="key "+cls; b.type="button"; b.textContent=label;
     b.addEventListener("click", ()=>{ initAudio(); fn(); }); return b; };
   const row=()=>{ const r=document.createElement("div"); r.className="krow"; return r; };
   [["1","2","3"],["4","5","6"],["7","8","9"]].forEach(rw=>{
-    const r=row(); rw.forEach(k=>r.appendChild(mk(k,()=>messAdd(k)))); kb.appendChild(r);
+    const r=row(); rw.forEach(k=>r.appendChild(mk(k,()=>zuAdd(k)))); kb.appendChild(r);
   });
   const r=row();
-  r.appendChild(mk("⌫", messDel));
-  r.appendChild(mk("0", ()=>messAdd("0")));
-  r.appendChild(mk("✓", messCheck, "key--check"));
+  r.appendChild(mk("⌫", zuDel));
+  r.appendChild(mk("0", ()=>zuAdd("0")));
+  r.appendChild(mk("✓ Prüfen", zuCheck, "key--check"));
   kb.appendChild(r);
 }
-function messCheck(){
-  const r=ST[stage], k=r.kontakte[messIdx];
-  if(!messTyped) return;
-  if(parseInt(messTyped,10)===k.nr){
-    sndOk(); burst(30);
-    const tile=document.querySelectorAll(".mtile")[messIdx];
-    tile.classList.remove("active"); tile.classList.add("done");
-    tile.querySelector(".mtile-badge").textContent="✓ "+k.nr;
-    messIdx++; messTyped=""; renderMessDisplay();
-    $("#messFeedback").textContent=""; $("#messFeedback").className="feedback";
-    if(messIdx>=r.kontakte.length){ burst(50); markStationDone(); }
-    else updateMessActive();
+function zuCheck(){
+  const r=RS[curIdx];
+  // alle Felder ausgefüllt?
+  if(zuVals.some(v=>v==="")){
+    const fb=$("#zuFeedback"); fb.textContent="Bitte hinter jedes Bild eine Zahl schreiben."; fb.className="feedback no";
+    return;
+  }
+  let allOk=true;
+  document.querySelectorAll(".ztile").forEach((t,i)=>{
+    const ok = parseInt(zuVals[i],10)===r.bilder[i].nr;
+    t.classList.remove("active");
+    t.classList.toggle("ok", ok);
+    t.classList.toggle("bad", !ok);
+    if(!ok) allOk=false;
+  });
+  if(allOk){
+    solvePuzzle();
   }else{
     sndNo();
-    const d=$("#messDisplay"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
-    const fb=$("#messFeedback"); fb.textContent="Leider falsch – nochmal messen. 🔎"; fb.className="feedback no";
-    messTyped=""; renderMessDisplay();
+    const chk=$("#zuKeyboard .key--check"); if(chk) flashNo(chk);
+    const fb=$("#zuFeedback"); fb.textContent="Fast! Die rot markierten Bilder stimmen noch nicht. 🔎"; fb.className="feedback no";
   }
 }
 
+/* ---------- Typ "mehrfach": Schwimm-Rätsel ---------- */
+let mfSel=new Set();
+function openMehrfach(r){
+  mfSel=new Set();
+  const grid=$("#objGrid"); grid.innerHTML="";
+  r.objekte.forEach((o,i)=>{
+    const b=document.createElement("button"); b.type="button"; b.className="obj"; b.dataset.i=i;
+    b.innerHTML=`<span class="oemoji">${o.emoji||"❓"}</span><span>${o.name}</span>`;
+    b.addEventListener("click", ()=>{
+      initAudio();
+      if(mfSel.has(i)){ mfSel.delete(i); b.classList.remove("sel"); }
+      else            { mfSel.add(i);   b.classList.add("sel"); }
+      // Kein Richtig/Falsch beim Anklicken – erst beim Prüfen.
+      $("#mfFeedback").textContent=""; $("#mfFeedback").className="feedback";
+    });
+    grid.appendChild(b);
+  });
+  $("#mfFeedback").textContent=""; $("#mfFeedback").className="feedback";
+  $("#pMehrfach").style.display="block";
+}
+$("#mfCheck").onclick=()=>{
+  initAudio();
+  const r=RS[curIdx];
+  // Menge der richtigen Indizes
+  const richtig=new Set();
+  r.objekte.forEach((o,i)=>{ if(o.schwimmt) richtig.add(i); });
+  const gleich = mfSel.size===richtig.size && [...mfSel].every(i=>richtig.has(i));
+  if(gleich){
+    solvePuzzle();
+  }else{
+    sndNo();
+    flashNo($("#mfCheck"));
+    const fb=$("#mfFeedback");
+    fb.textContent="Noch nicht ganz – probiert weiter aus, welche Gegenstände wirklich schwimmen. 🔎";
+    fb.className="feedback no";
+  }
+};
+
+/* ---------------- Finale / Abschluss ---------------- */
 function goFinal(){
-  saveState("final");
+  saveState(true);
   show("screen-final");
   const w=$("#reveal"); w.innerHTML="";
   CONFIG.loesungswort.split("").forEach((ch,i)=>{
@@ -654,38 +884,52 @@ function goFinal(){
   $("#outroBtn").hidden=!CONFIG.abschlussVideo;
   sndWin(); burst(140); setTimeout(()=>burst(90),500);
 }
+$("#outroBtn").onclick = ()=>{
+  show("screen-intro");
+  $("#skipBtn").style.display="none";
+  $("#introNext").classList.remove("show");
+  $("#screen-intro .vp-label").textContent="GEHEIME BOTSCHAFT";
+  // Abschlussvideo im selben Player abspielen, danach zurück ins Finale.
+  introEnded=true;
+  introVideo.style.display="block"; introVideo.src=CONFIG.abschlussVideo; introVideo.load();
+  const onEnd=()=>{ introVideo.removeEventListener("ended", onEnd); goFinal(); };
+  introVideo.addEventListener("ended", onEnd);
+  const p=introVideo.play(); if(p) p.catch(()=>introPlayHint.classList.add("show"));
+};
 
-/* Fortschritt speichern (localStorage – überlebt Reload & PWA-Neustart) */
+/* ---------------- Fortschritt speichern ---------------- */
 const SKEY="forscher-fortschritt";
-function saveState(phase){ try{ localStorage.setItem(SKEY, JSON.stringify({v:1,stage,phase})); }catch(e){} }
+function saveState(final){
+  try{ localStorage.setItem(SKEY, JSON.stringify({v:2, solved:[...solved], final:!!final})); }catch(e){}
+}
 function loadState(){ try{ return JSON.parse(localStorage.getItem(SKEY)||"null"); }catch(e){ return null; } }
 function clearState(){ try{ localStorage.removeItem(SKEY); }catch(e){} }
-function hasProgress(){ const r=loadState(); return !!(r && (r.stage>0 || r.phase==="final")); }
-function updateStartLabel(){ $("#startBtn").textContent = hasProgress() ? "▶ Weiter" : "▶ Mission starten"; }
+function hasProgress(){ const r=loadState(); return !!(r && ((r.solved&&r.solved.length) || r.final)); }
+function updateStartLabel(){ $("#startBtn").textContent = hasProgress() ? "▶ Weiter" : "▶ Start"; }
 
+/* ---------------- Start ---------------- */
 const hasName = !!CONFIG.missionsName.trim();
 $("#mName").textContent   = CONFIG.missionsName;
-$("#mName").hidden        = !hasName;                 // leerer Titel -> keine leere Zeile
+$("#mName").hidden        = !hasName;
 $("#mLead").textContent   = CONFIG.einleitung;
-$("#barName").textContent = CONFIG.missionsName;
-$(".missionbar .title").style.display = hasName ? "" : "none";
-buildBar();
+
+(function initFromStorage(){
+  const r=loadState();
+  if(r && r.solved) solved=new Set(r.solved);
+})();
 updateStartLabel();
 show("screen-start");
 
 $("#startBtn").onclick = ()=>{
   initAudio(); goFullscreen();
   const r=loadState();
-  if(r && r.phase==="final") goFinal();
-  else { show("screen-station"); enterStation(r && r.stage>0 ? r.stage : 0); }
+  if(r && r.final){ goFinal(); return; }
+  if(r && r.solved && r.solved.length){ goOverview(); return; }  // schon dabei -> direkt zur Übersicht
+  show("screen-intro");
+  $("#screen-intro .vp-label").textContent="ÜBERTRAGUNG";
+  playIntro();
 };
-$("#outroBtn").onclick = ()=>{
-  show("screen-station");
-  $("#blockQuiz").style.display="none"; $("#blockDone").classList.remove("show");
-  block("video"); $("#vpLabel").textContent="GEHEIME BOTSCHAFT";
-  playVideo(CONFIG.abschlussVideo, ()=>goFinal());
-};
-$("#restartBtn").onclick = ()=>{ clearState(); stage=0; typed=""; updateBar(); updateStartLabel(); show("screen-start"); };
+$("#restartBtn").onclick = ()=>{ clearState(); solved=new Set(); updateStartLabel(); show("screen-start"); };
 
 /* ================================================================
    Vollbild · Einstellungen · App-Installation (PWA)
@@ -752,17 +996,20 @@ function buildPinpad(){
 }
 buildPinpad(); renderPinDots();
 
-// Kapitel-Sprungmarken
+// Sprungmarken: direkt zu einem Rätsel, zur Übersicht oder zum Abschluss.
 function buildChapters(){
   const box=$("#chapters"); box.innerHTML="";
-  ST.forEach((s,i)=>{
+  const ov=document.createElement("button"); ov.type="button"; ov.textContent="🧪 Übersicht";
+  ov.onclick=()=>{ closeSettings(); initAudio(); goOverview(); };
+  box.appendChild(ov);
+  RS.forEach((s,i)=>{
     const b=document.createElement("button"); b.type="button";
-    b.textContent=(i+1)+". "+s.titel;
-    if(i===stage) b.classList.add("cur");
-    b.onclick=()=>{ closeSettings(); initAudio(); show("screen-station"); enterStation(i); };
+    b.textContent=(s.nr ?? (i+1))+". "+s.titel;
+    if(solved.has(s.id)) b.classList.add("done");
+    b.onclick=()=>{ closeSettings(); initAudio(); openPuzzle(i); };
     box.appendChild(b);
   });
-  const f=document.createElement("button"); f.type="button"; f.textContent="🏆 Auflösung";
+  const f=document.createElement("button"); f.type="button"; f.textContent="🏆 Abschluss";
   f.onclick=()=>{ closeSettings(); goFinal(); };
   box.appendChild(f);
 }
@@ -773,7 +1020,7 @@ $("#settingsClose").onclick = closeSettings;
 settings.addEventListener("click", e=>{ if(e.target===settings) closeSettings(); });
 $("#fsBtn").onclick         = ()=>{ toggleFullscreen(); setTimeout(syncFsLabel,60); };
 $("#resetBtn").onclick      = ()=>{
-  clearState(); stage=0; typed=""; updateBar(); updateStartLabel();
+  clearState(); solved=new Set(); updateStartLabel();
   closeSettings(); show("screen-start");
 };
 
