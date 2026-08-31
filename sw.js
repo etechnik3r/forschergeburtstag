@@ -1,9 +1,18 @@
 /* Service Worker für den Forscher-Geburtstag.
-   Zweck: Die App installierbar machen (PWA) und komplett offline betreiben.
-   Strategie: Kern-Dateien beim Installieren vorladen, alles andere
-   (auch die Videos) beim ersten Abruf in den Cache legen -> danach offline. */
+   Zweck: Die App installierbar machen (PWA) und offline nutzbar halten,
+   ABER: Wenn online, immer den AKTUELLEN Stand laden – kein hängenbleiben
+   auf einer alten Version.
 
-const CACHE = "forscher-v5";
+   Strategie:
+   - Seiten-Aufrufe (die HTML-Seite selbst): NETWORK-FIRST.
+       Erst aus dem Netz laden (aktuellster Stand), Cache nur als
+       Offline-Reserve. So sieht man nach jedem Neuladen sofort die
+       neueste Version.
+   - Bilder, Videos, Manifest, Icons: STALE-WHILE-REVALIDATE.
+       Sofort aus dem Cache anzeigen (schnell/offline) UND im Hintergrund
+       eine frische Kopie holen, die beim nächsten Mal genutzt wird. */
+
+const CACHE = "forscher-v6";
 const CORE = [
   "./",
   "./index.html",
@@ -21,6 +30,7 @@ const CORE = [
 ];
 
 self.addEventListener("install", (e) => {
+  // Neue Version sofort übernehmen, nicht auf das Schließen aller Tabs warten.
   e.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())
   );
@@ -34,23 +44,53 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Erlaubt der Seite, ein sofortiges Update anzustoßen.
+self.addEventListener("message", (e) => {
+  if (e.data === "skip-waiting") self.skipWaiting();
+});
+
+function isHtmlRequest(req) {
+  return req.mode === "navigate" ||
+         (req.headers.get("accept") || "").includes("text/html");
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // nur eigene Dateien
 
-  // Videos & Co: erst Cache, sonst Netz holen und dann cachen.
+  // Seite selbst -> NETWORK-FIRST (immer aktuellster Stand, wenn online).
+  // cache:"no-store" umgeht den Browser-HTTP-Cache, damit wirklich die
+  // neueste Datei vom Server geholt wird (nicht eine 10-Min-alte Kopie).
+  if (isHtmlRequest(req)) {
+    e.respondWith(
+      fetch(req.url, { cache: "no-store" })
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.match(req).then((hit) => hit || caches.match("./index.html"))
+        )
+    );
+    return;
+  }
+
+  // Alles andere (Bilder, Videos, …) -> STALE-WHILE-REVALIDATE.
   e.respondWith(
     caches.match(req).then((hit) => {
-      if (hit) return hit;
-      return fetch(req).then((res) => {
+      const fresh = fetch(req).then((res) => {
         if (res && res.status === 200 && res.type === "basic") {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
       }).catch(() => hit);
+      return hit || fresh;
     })
   );
 });

@@ -1123,9 +1123,28 @@ $("#installBtn").onclick = async ()=>{
   }
 };
 
-// Service Worker registrieren (nötig für Installierbarkeit & Offline)
+// Service Worker registrieren (nötig für Installierbarkeit & Offline).
+// updateViaCache:"none" -> der Browser holt sw.js immer frisch, damit
+// Updates schnell ankommen. Bei einer neuen Version übernimmt der neue
+// Service Worker sofort; offene Seiten laden dann EINMAL automatisch neu.
 if("serviceWorker" in navigator){
-  addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+  addEventListener("load", ()=>{
+    // Merken, ob schon ein Service Worker aktiv war (dann ist ein Wechsel
+    // ein echtes Update -> neu laden; beim allerersten Besuch nicht).
+    const hadController = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+      if(!hadController || refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register("sw.js", { updateViaCache:"none" })
+      .then((reg)=>{
+        reg.update();                                   // sofort auf Updates prüfen
+        setInterval(()=>reg.update(), 30*60*1000);      // und regelmäßig
+      })
+      .catch(()=>{});
+  });
 }
 </script>
 </body>
