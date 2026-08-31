@@ -151,9 +151,25 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .ov-bar{flex:1 1 auto; height:12px; border-radius:8px; background:var(--panel-2); border:1px solid var(--edge); overflow:hidden}
 .ov-bar i{display:block; height:100%; width:0; background:var(--ok); border-radius:8px; transition:width .5s ease}
 
-/* Abschluss-Knopf: erst wenn ALLE Rätsel gelöst sind. */
-.final-reveal{display:none; text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--edge)}
-.final-reveal.show{display:block; animation:in .5s ease both}
+/* Abschluss-Knopf: IMMER sichtbar. Gesperrt (ausgegraut) bis alle Rätsel
+   gelöst sind, dann leuchtet er grün und pulsiert als deutlicher Hinweis. */
+.final-gate{text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--edge)}
+.final-btn{font-size:clamp(19px,4.4vw,26px); padding:20px 34px}
+/* Gesperrt: ausgegraut, wirkt inaktiv – bleibt aber tippbar für den Hinweis. */
+.final-btn.is-locked{background:var(--panel-2); color:var(--muted); border-color:var(--edge);
+  box-shadow:0 4px 0 rgba(0,0,0,.3); opacity:.6; filter:grayscale(.4)}
+.final-btn.is-locked .lock-emoji{opacity:1}
+.final-btn .lock-emoji{margin-right:2px}
+/* Freigeschaltet: grün, umrandet, sanftes Pulsieren + Leuchten. */
+.final-btn.is-ready{background:var(--ok); color:var(--on-ok); border:2px solid #baffd8; opacity:1; filter:none;
+  animation:finalPulse 1.25s ease-in-out infinite}
+@keyframes finalPulse{
+  0%,100%{ box-shadow:0 5px 0 rgba(0,0,0,.35), 0 0 0 0 rgba(55,214,122,.55); transform:none }
+  50%    { box-shadow:0 5px 0 rgba(0,0,0,.35), 0 0 26px 8px rgba(55,214,122,.55); transform:translateY(-2px) }
+}
+.final-hint{min-height:22px; margin:12px 2px 0; font-family:var(--mono); font-size:14px; line-height:1.4; color:var(--amber)}
+.final-hint.ready{color:var(--ok)}
+.final-hint.shake{animation:shake .4s}
 
 /* ---------- Rätsel-Ansicht ---------- */
 .back-btn{padding:11px 18px; font-size:16px; margin:0}
@@ -181,18 +197,20 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .key--check{flex:2.2 1 0; background:var(--ok); color:var(--on-ok); border-color:transparent}
 .numpad .key{height:clamp(58px,13vw,74px); font-size:clamp(24px,7vw,32px); max-width:none}
 
-/* ---------- Strom-Rätsel: 4 Bilder -> je eine Zahl (1–16) ---------- */
-.zu-tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:8px 0 12px}
-.ztile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff; padding:8px 6px 8px;
+/* ---------- Strom-Rätsel: 6 Bilder -> je eine Zahl (1–18) ---------- */
+/* Wissenschaftliche Eingabekonsole: klare Messplätze in 3 Spalten. */
+.zu-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:8px 0 12px}
+.ztile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff; padding:10px 6px 8px;
   display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer;
   transition:box-shadow .15s, border-color .2s, background .2s; opacity:.85}
-.ztile img{width:100%; height:clamp(58px,12vw,104px); object-fit:contain; display:block}
+.ztile img{width:100%; height:clamp(50px,10vw,92px); object-fit:contain; display:block}
 .ztile-num{position:absolute; top:-10px; left:-8px; width:26px; height:26px; border-radius:50%;
   background:var(--panel-2); border:1px solid var(--edge); color:var(--muted); font-family:var(--mono);
   font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center}
 .zin{width:100%; height:42px; border-radius:10px; border:1px solid #b8bce0; background:#fff; color:#1c2233;
   font-family:var(--mono); font-weight:700; font-size:24px; display:flex; align-items:center; justify-content:center}
 .zin .ph{color:#9aa; font-size:14px; font-weight:400}
+@media (orientation:portrait), (max-width:520px){ .zu-tiles{grid-template-columns:repeat(2,1fr)} }
 .ztile.active{opacity:1; border-color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.3)}
 .ztile.active .zin{border-color:var(--amber)}
 .ztile.ok{opacity:1; border-color:var(--ok); background:#e6fff1}
@@ -372,10 +390,13 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
       <div class="ov-progress"><div class="ov-bar"><i id="ovBar"></i></div></div>
       <div class="raetsel-grid" id="raetselGrid"></div>
 
-      <!-- Erscheint erst, wenn ALLE Rätsel gelöst sind. -->
-      <div class="final-reveal" id="finalReveal">
-        <p class="lead">🎉 Alle Rätsel gelöst! Ihr habt es geschafft.</p>
-        <button class="btn btn--amber" id="toFinalBtn">🏆 Zum Abschluss</button>
+      <!-- Immer sichtbar: gesperrt, bis ALLE Rätsel gelöst sind. -->
+      <div class="final-gate" id="finalGate">
+        <button class="btn final-btn is-locked" id="toFinalBtn">
+          <span class="lock-emoji" id="finalIcon">🔒</span>
+          <span id="finalLabel">Abschluss</span>
+        </button>
+        <p class="final-hint" id="finalHint">Löst erst alle Rätsel – dann öffnet sich der Abschluss.</p>
       </div>
     </div>
   </section>
@@ -422,17 +443,25 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
     </div>
   </section>
 
-  <!-- 5) ABSCHLUSS -->
+  <!-- 5) ABSCHLUSS-FOLGESEITE: Abschlussvideo + Lösungswort + Text -->
   <section class="screen" id="screen-final">
     <div class="console center">
       <div class="eyebrow">Mission erfüllt</div>
       <h1>🏆 Geschafft!</h1>
+
+      <!-- Abschlussvideo (erscheint nur, wenn eine Datei hinterlegt ist). -->
+      <div class="viewport" id="outroViewport" hidden>
+        <div class="vp-label">ABSCHLUSS</div>
+        <video id="outroVideo" playsinline preload="auto"></video>
+        <div class="play-hint" id="outroPlayHint">▶️</div>
+      </div>
+      <div class="video-error" id="outroError">
+        <p class="lead">🎬 Abschlussvideo noch nicht hinterlegt. Der Rest funktioniert trotzdem.</p>
+      </div>
+
       <p class="lead">Euer geheimes Lösungswort:</p>
       <div class="reveal" id="reveal"></div>
       <p class="lead" id="finalMsg"></p>
-      <div class="btn-row">
-        <button class="btn btn--amber" id="outroBtn" hidden>🎬 Geheime Botschaft</button>
-      </div>
     </div>
   </section>
 
@@ -469,16 +498,19 @@ const CONFIG = {
   raetsel: [
 
     /* --- Rätsel 1: Strom-Rätsel -------------------------------------
-       Vier Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 16.
+       Sechs Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 18.
        Kind tippt ein Bild an, gibt die Zahl ein, dann "✓ Prüfen".
-       -> die vier echten Bilder + Lösungszahlen hier eintragen.        */
+       -> die echten Lösungszahlen hier eintragen (die 6 Bilder liegen
+          schon im Ordner: elektro_start_1.png … elektro_start_6.png).   */
     { id:"strom", nr:1, titel:"Stromkreis", typ:"zuordnung",
-      frage:"Miss den Stromkreis: Welche Zahl (1–16) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
+      frage:"Miss den Stromkreis: Welche Zahl (1–18) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
       bilder:[
-        { bild:"elektro_start_1.png", nr:14 },  // TODO: echtes Bild + Zahl
-        { bild:"elektro_start_2.png", nr:3  },  // TODO: echtes Bild + Zahl
-        { bild:"elektro_start_3.png", nr:9  },  // TODO: echtes Bild + Zahl
-        { bild:"elektro_start_4.png", nr:16 }   // TODO: echtes Bild + Zahl
+        { bild:"elektro_start_1.png", nr:14 },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_2.png", nr:3  },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_3.png", nr:9  },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_4.png", nr:16 },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_5.png", nr:7  },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_6.png", nr:18 }   // TODO: echte Lösungszahl
       ]
     },
 
@@ -533,7 +565,9 @@ const CONFIG = {
     }
   ],
 
-  abschlussVideo: "",   // optional: MP4 nach dem Finale, "" = keins
+  // Abschlussvideo auf der Abschluss-Folgeseite. Datei in DIESEN Ordner legen.
+  // Fehlt die Datei, wird das Feld einfach ausgeblendet – alles andere läuft.
+  abschlussVideo: "abschluss-video.mp4",
   loesungswort:   "FORSCHER",
   belohnungstext: "Mission erfüllt! Ihr seid jetzt echte Nachwuchs-Forscher. 🥳"
 };
@@ -548,6 +582,7 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 /* Fortschritt: Menge gelöster Rätsel-IDs. */
 let solved = new Set();
 let curIdx = -1;          // aktuell geöffnetes Rätsel
+let finalCelebrated = false;  // wurde das "alle gelöst"-Feiern schon gezeigt?
 
 function show(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("is-active"));
@@ -645,19 +680,43 @@ function buildOverview(){
   $("#ovCount").textContent = n+" / "+total+" gelöst";
   $("#ovBar").style.width = total ? Math.round(n/total*100)+"%" : "0%";
 
-  // Abschluss-Knopf erst, wenn ALLE Rätsel gelöst sind – nach kurzer Zeit.
-  const fr=$("#finalReveal");
-  if(n===total && total>0){
-    if(!fr.classList.contains("show")){
-      setTimeout(()=>{ fr.classList.add("show"); sndWin(); burst(90); }, 900);
-    }
+  // Abschluss-Knopf ist IMMER sichtbar. Gesperrt (ausgegraut), bis alle
+  // Rätsel gelöst sind – dann leuchtet er grün und pulsiert.
+  const allDone = (n===total && total>0);
+  const btn=$("#toFinalBtn"), hint=$("#finalHint"),
+        icon=$("#finalIcon"), label=$("#finalLabel");
+  if(allDone){
+    btn.classList.remove("is-locked"); btn.classList.add("is-ready");
+    icon.textContent="🏆"; label.textContent="Zum Abschluss";
+    hint.textContent="Alle Rätsel gelöst – jetzt könnt ihr den Abschluss öffnen!";
+    hint.className="final-hint ready";
+    // Beim ersten vollständigen Lösen kurz feiern.
+    if(!finalCelebrated){ finalCelebrated=true; setTimeout(()=>{ sndWin(); burst(90); }, 250); }
   }else{
-    fr.classList.remove("show");
+    btn.classList.remove("is-ready"); btn.classList.add("is-locked");
+    icon.textContent="🔒"; label.textContent="Abschluss";
+    const offen = total - n;
+    hint.textContent = "Noch "+offen+(offen===1?" Rätsel":" Rätsel")+" offen – löst erst alle, dann öffnet sich der Abschluss.";
+    hint.className="final-hint";
+    finalCelebrated=false;
   }
 }
 $("#backBtn").onclick   = goOverview;
 $("#pBackToOv").onclick = goOverview;
-$("#toFinalBtn").onclick= ()=>{ initAudio(); goFinal(); };
+$("#toFinalBtn").onclick= ()=>{
+  initAudio();
+  // Freigeschaltet? Dann zur Abschluss-Folgeseite. Sonst nur Hinweis zeigen.
+  if($("#toFinalBtn").classList.contains("is-ready")){
+    goFinal();
+  }else{
+    sndNo();
+    const offen = RS.length - solved.size;
+    const hint=$("#finalHint");
+    hint.textContent = "🔒 Erst müssen alle Rätsel gelöst werden – noch "+offen+(offen===1?" Rätsel":" Rätsel")+" offen.";
+    hint.className="final-hint";
+    hint.classList.remove("shake"); void hint.offsetWidth; hint.classList.add("shake");
+  }
+};
 
 /* ---------------- Ein Rätsel öffnen ---------------- */
 function openPuzzle(i){
@@ -789,7 +848,7 @@ function renderZu(){
 function zuAdd(c){
   let v=zuVals[zuActive]+c;
   if(v.length>2) return;
-  if(parseInt(v,10)>16) return;          // nur 1–16 zulassen
+  if(parseInt(v,10)>18) return;          // nur 1–18 zulassen
   zuVals[zuActive]=v; renderZu();
   document.querySelectorAll(".ztile")[zuActive].classList.remove("ok","bad");
 }
@@ -871,7 +930,27 @@ $("#mfCheck").onclick=()=>{
   }
 };
 
-/* ---------------- Finale / Abschluss ---------------- */
+/* ---------------- Abschluss-Folgeseite ---------------- */
+const outroVideo=$("#outroVideo"), outroPlayHint=$("#outroPlayHint");
+let outroStarted=false;
+function playOutro(){
+  const vp=$("#outroViewport"), err=$("#outroError");
+  outroPlayHint.classList.remove("show"); err.classList.remove("show");
+  if(!CONFIG.abschlussVideo){ vp.hidden=true; return; }   // kein Video hinterlegt
+  vp.hidden=false;
+  outroVideo.src=CONFIG.abschlussVideo; outroVideo.load();
+  const p=outroVideo.play(); if(p) p.catch(()=>outroPlayHint.classList.add("show"));
+}
+outroVideo.addEventListener("play",  ()=> outroPlayHint.classList.remove("show"));
+outroVideo.addEventListener("error", ()=>{
+  // Datei fehlt/defekt -> Video ausblenden, freundlichen Hinweis zeigen.
+  if(outroVideo.src){ $("#outroViewport").hidden=true; $("#outroError").classList.add("show"); }
+});
+$("#outroViewport").addEventListener("click", ()=>{
+  if(outroVideo.paused){ outroVideo.play(); }
+  else { outroVideo.pause(); outroPlayHint.classList.add("show"); }
+});
+
 function goFinal(){
   saveState(true);
   show("screen-final");
@@ -881,21 +960,10 @@ function goFinal(){
     s.style.animationDelay=(0.12+i*0.1)+"s"; w.appendChild(s);
   });
   $("#finalMsg").textContent=CONFIG.belohnungstext;
-  $("#outroBtn").hidden=!CONFIG.abschlussVideo;
+  // Abschlussvideo nur einmal automatisch starten (nicht bei jedem Rücksprung).
+  if(!outroStarted){ outroStarted=true; playOutro(); }
   sndWin(); burst(140); setTimeout(()=>burst(90),500);
 }
-$("#outroBtn").onclick = ()=>{
-  show("screen-intro");
-  $("#skipBtn").style.display="none";
-  $("#introNext").classList.remove("show");
-  $("#screen-intro .vp-label").textContent="GEHEIME BOTSCHAFT";
-  // Abschlussvideo im selben Player abspielen, danach zurück ins Finale.
-  introEnded=true;
-  introVideo.style.display="block"; introVideo.src=CONFIG.abschlussVideo; introVideo.load();
-  const onEnd=()=>{ introVideo.removeEventListener("ended", onEnd); goFinal(); };
-  introVideo.addEventListener("ended", onEnd);
-  const p=introVideo.play(); if(p) p.catch(()=>introPlayHint.classList.add("show"));
-};
 
 /* ---------------- Fortschritt speichern ---------------- */
 const SKEY="forscher-fortschritt";
@@ -929,7 +997,8 @@ $("#startBtn").onclick = ()=>{
   $("#screen-intro .vp-label").textContent="ÜBERTRAGUNG";
   playIntro();
 };
-$("#restartBtn").onclick = ()=>{ clearState(); solved=new Set(); updateStartLabel(); show("screen-start"); };
+function stopOutro(){ try{ outroVideo.pause(); }catch(e){} outroStarted=false; }
+$("#restartBtn").onclick = ()=>{ stopOutro(); clearState(); solved=new Set(); finalCelebrated=false; updateStartLabel(); show("screen-start"); };
 
 /* ================================================================
    Vollbild · Einstellungen · App-Installation (PWA)
@@ -1020,7 +1089,7 @@ $("#settingsClose").onclick = closeSettings;
 settings.addEventListener("click", e=>{ if(e.target===settings) closeSettings(); });
 $("#fsBtn").onclick         = ()=>{ toggleFullscreen(); setTimeout(syncFsLabel,60); };
 $("#resetBtn").onclick      = ()=>{
-  clearState(); solved=new Set(); updateStartLabel();
+  stopOutro(); clearState(); solved=new Set(); finalCelebrated=false; updateStartLabel();
   closeSettings(); show("screen-start");
 };
 

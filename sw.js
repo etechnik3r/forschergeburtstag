@@ -3,7 +3,7 @@
    Strategie: Kern-Dateien beim Installieren vorladen, alles andere
    (auch die Videos) beim ersten Abruf in den Cache legen -> danach offline. */
 
-const CACHE = "forscher-v4";
+const CACHE = "forscher-v5";
 const CORE = [
   "./",
   "./index.html",
