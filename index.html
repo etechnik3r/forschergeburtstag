@@ -65,6 +65,25 @@ body{
 }
 #confetti{position:fixed; inset:0; z-index:60; pointer-events:none}
 
+/* ---------- Chemie-Explosion (falsche Antwort) ---------- */
+.boom{position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center;
+  text-align:center; padding:20px;
+  background:radial-gradient(circle at 50% 44%, rgba(255,120,40,.38), rgba(6,5,20,.9) 62%)}
+.boom[hidden]{display:none}
+.boom-flash{position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(circle at 50% 44%, #fff, #ffcf4d 22%, transparent 58%); opacity:0}
+.boom.show .boom-flash{animation:boomFlash .75s ease-out}
+@keyframes boomFlash{0%{opacity:0; transform:scale(.2)}12%{opacity:.95}100%{opacity:0; transform:scale(1.7)}}
+.boom-core{position:relative; z-index:1; color:#fff}
+.boom-emoji{font-size:clamp(80px,26vw,180px); line-height:1; filter:drop-shadow(0 6px 18px rgba(0,0,0,.55))}
+.boom.show .boom-emoji{animation:boomPop .6s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes boomPop{0%{transform:scale(0) rotate(-16deg)}60%{transform:scale(1.2) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+.boom-title{font-family:var(--mono); font-weight:700; font-size:clamp(30px,9vw,58px); letter-spacing:.12em;
+  color:#ffcf4d; margin-top:4px; text-shadow:0 3px 12px rgba(0,0,0,.5)}
+.boom-sub{font-size:clamp(17px,4.4vw,24px); color:#ffdcd2; margin-top:8px}
+.boom-count{font-family:var(--mono); font-size:15px; color:var(--muted); margin-top:18px; min-height:20px}
+.shake-hard{animation:shake .55s}
+
 .stage{position:relative; z-index:1; height:100%; display:flex; align-items:center; justify-content:center; padding:clamp(10px,2.2vh,22px)}
 .screen{display:none; width:100%; max-width:760px}
 /* Video-, Übersicht- und Rätsel-Screens nutzen im Querformat mehr Breite. */
@@ -326,6 +345,19 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 </head>
 <body>
 <canvas id="confetti"></canvas>
+
+<!-- Chemie-Explosion: erscheint bei jeder falschen Antwort, sperrt kurz den
+     Bildschirm (damit Kinder nicht schnell durchraten) und springt danach
+     automatisch zur Rätsel-Übersicht zurück. -->
+<div class="boom" id="boom" hidden>
+  <div class="boom-flash"></div>
+  <div class="boom-core">
+    <div class="boom-emoji">💥</div>
+    <div class="boom-title">PUFF!</div>
+    <div class="boom-sub">Das Experiment ist explodiert! 🧪💨</div>
+    <div class="boom-count" id="boomCount"></div>
+  </div>
+</div>
 <button class="ghost" id="skipBtn">VIDEO ÜBERSPRINGEN ⏭</button>
 <button class="ghost" id="restartBtn">↺ NEU STARTEN</button>
 
@@ -541,28 +573,46 @@ const CONFIG = {
 
   raetsel: [
 
-    /* --- Rätsel 1: Das Duftlabor ------------------------------------
+    /* --- Rätsel 1: Die verschwundene Formel -------------------------
+       Poster an der Wand mit vielen Strukturformeln, dazu sieben
+       Karteikarten. Ein Stoff einer Karteikarte fehlt auf dem Poster.
+       Lösung: Ameisensäure. (Auswahl-Seite ohne Erklärtext: frage="")  */
+    { id:"struktur", nr:1, titel:"Die verschwundene Formel", typ:"auswahl",
+      frage:"",
+      optionen:[ "Alkohol", "Traubenzucker", "Zitronensäure", "Fruchtzucker", "Milchsäure", "Essigsäure", "Ameisensäure" ],
+      antwort:"Ameisensäure"
+    },
+
+    /* --- Rätsel 2: Das Duftlabor ------------------------------------
        Drei kleine Dosen (weiß mit rotem Deckel), in jeder ein Duft.
        Die Kinder riechen und bringen die Dosen in die richtige
        Reihenfolge; eingegeben wird die dreistellige Zahl.              */
-    { id:"riechen", nr:1, titel:"Das Duftlabor", typ:"zahl",
+    { id:"riechen", nr:2, titel:"Das Duftlabor", typ:"zahl",
       frage:"Riecht an den drei Dosen (weiß mit rotem Deckel). Bringt sie in die richtige Reihenfolge und gebt die dreistellige Zahl ein.",
       antwort:"231"
     },
 
-    /* --- Rätsel 2: Das geheime pH-Labor -----------------------------
-       Sechs Reagenzgläser; mit dem pH-Teststreifen den pH-Wert messen.
-       Gesucht ist die stärkste Lauge. Lösung: Soda.                    */
-    { id:"ph", nr:2, titel:"Das geheime pH-Labor", typ:"auswahl",
-      frage:"Bestimmt mit dem pH-Teststreifen den pH-Wert der sechs Reagenzgläser. Welche Substanz ist die stärkste Lauge?",
-      optionen:[ "Wasser", "Seife", "Essig", "Zitronensäure", "Natron", "Soda" ],
-      antwort:"Soda"
+    /* --- Rätsel 3: Strom-Rätsel -------------------------------------
+       Sechs Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 18.
+       Kind tippt ein Bild an, gibt die Zahl ein, dann "✓ Prüfen".
+       -> Details/Lösungszahlen werden noch besprochen (die 6 Bilder
+          liegen schon im Ordner: elektro_start_1.png … _6.png).        */
+    { id:"strom", nr:3, titel:"Stromkreis", typ:"zuordnung",
+      frage:"Miss den Stromkreis: Welche Zahl (1–18) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
+      bilder:[
+        { bild:"elektro_start_1.png", nr:14 },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_2.png", nr:3  },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_3.png", nr:9  },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_4.png", nr:16 },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_5.png", nr:7  },  // TODO: echte Lösungszahl
+        { bild:"elektro_start_6.png", nr:18 }   // TODO: echte Lösungszahl
+      ]
     },
 
-    /* --- Rätsel 3: Was schwimmt – was sinkt? ------------------------
+    /* --- Rätsel 4: Was schwimmt – was sinkt? ------------------------
        Gegenstände liegen im Sammler und werden per Drag & Drop auf die
        Seite "Schwimmt" oder "Sinkt" gezogen. schwimmt:true = schwimmt. */
-    { id:"schwimmen", nr:3, titel:"Was schwimmt – was sinkt?", typ:"sortier",
+    { id:"schwimmen", nr:4, titel:"Was schwimmt – was sinkt?", typ:"sortier",
       frage:"Zieht jeden Gegenstand auf die richtige Seite: schwimmt oben, sinkt unten. Dann auf ✓ Prüfen tippen.",
       objekte:[
         { name:"Korken",     emoji:"🟤", schwimmt:true  },
@@ -574,31 +624,14 @@ const CONFIG = {
       ]
     },
 
-    /* --- Rätsel 4: Die verschwundene Formel -------------------------
-       Poster an der Wand mit vielen Strukturformeln, dazu sieben
-       Karteikarten. Ein Stoff einer Karteikarte fehlt auf dem Poster.
-       Lösung: Ameisensäure.                                            */
-    { id:"struktur", nr:4, titel:"Die verschwundene Formel", typ:"auswahl",
-      frage:"Auf dem Poster an der Wand seht ihr viele Strukturformeln. Auf einer der sieben Karteikarten steht ein Stoff, der NICHT auf dem Poster zu finden ist. Welcher?",
-      optionen:[ "Alkohol", "Traubenzucker", "Zitronensäure", "Fruchtzucker", "Milchsäure", "Essigsäure", "Ameisensäure" ],
-      antwort:"Ameisensäure"
-    },
-
-    /* --- Rätsel 5: Strom-Rätsel -------------------------------------
-       Sechs Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 18.
-       Kind tippt ein Bild an, gibt die Zahl ein, dann "✓ Prüfen".
-       -> Details/Lösungszahlen werden noch besprochen (die 6 Bilder
-          liegen schon im Ordner: elektro_start_1.png … _6.png).        */
-    { id:"strom", nr:5, titel:"Stromkreis", typ:"zuordnung",
-      frage:"Miss den Stromkreis: Welche Zahl (1–18) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
-      bilder:[
-        { bild:"elektro_start_1.png", nr:14 },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_2.png", nr:3  },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_3.png", nr:9  },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_4.png", nr:16 },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_5.png", nr:7  },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_6.png", nr:18 }   // TODO: echte Lösungszahl
-      ]
+    /* --- Rätsel 5: Das geheime pH-Labor -----------------------------
+       Sechs Reagenzgläser; mit dem pH-Teststreifen den pH-Wert messen.
+       Gesucht ist die stärkste Lauge (per Name gewählt). Lösung: Soda.
+       (Auswahl-Seite ohne Erklärtext: frage="")                        */
+    { id:"ph", nr:5, titel:"Das geheime pH-Labor", typ:"auswahl",
+      frage:"",
+      optionen:[ "Wasser", "Seife", "Essig", "Zitronensäure", "Natron", "Soda" ],
+      antwort:"Soda"
     }
   ],
 
@@ -644,6 +677,20 @@ function initAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webk
 const sndOk =()=>{ tone(620,0,.12); tone(880,.1,.2); };
 const sndNo =()=>{ tone(150,0,.28,"sawtooth",.12); };
 const sndWin=()=>{ [523,659,784,1047].forEach((f,i)=>tone(f,i*.13,.28,"triangle",.15)); };
+/* Explosions-Knall: tiefes Bumm + gefiltertes Rauschen. */
+function sndBoom(){
+  if(!actx) return;
+  tone(70,0,.55,"sine",.3); tone(46,0,.75,"sine",.24);   // tiefes Bumm
+  try{
+    const dur=.6, buf=actx.createBuffer(1, Math.floor(actx.sampleRate*dur), actx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2); }  // abklingendes Rauschen
+    const src=actx.createBufferSource(); src.buffer=buf;
+    const lp=actx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1300;
+    const g=actx.createGain(); g.gain.value=.5;
+    src.connect(lp); lp.connect(g); g.connect(actx.destination); src.start();
+  }catch(e){}
+}
 
 const cvs=$("#confetti"), cx=cvs.getContext("2d");
 let parts=[], raf=null;
@@ -666,6 +713,30 @@ function l(){
   if(!parts.length) cx.clearRect(0,0,cvs.width,cvs.height);
 }
 function flashNo(el){ el.classList.remove("flash-no"); void el.offsetWidth; el.classList.add("flash-no"); }
+
+/* Falsche Antwort (für ALLE Rätsel-Typen): kleine Chemie-Explosion mit
+   Sound, dann 5 Sekunden Bildschirm-Sperre und zurück zur Übersicht.
+   Das verhindert, dass Kinder blitzschnell alle Möglichkeiten durchtippen. */
+let boomActive=false;
+function wrongAnswer(){
+  if(boomActive) return;          // schon eine Explosion aktiv
+  boomActive=true;
+  sndBoom();
+  const boom=$("#boom"), cnt=$("#boomCount");
+  boom.hidden=false;
+  boom.classList.remove("show"); void boom.offsetWidth; boom.classList.add("show");
+  $(".stage").classList.remove("shake-hard"); void $(".stage").offsetWidth; $(".stage").classList.add("shake-hard");
+  let left=5;
+  cnt.textContent="Weiter geht's in "+left+" …";
+  const iv=setInterval(()=>{ left--; if(left>=1) cnt.textContent="Weiter geht's in "+left+" …"; }, 1000);
+  setTimeout(()=>{
+    clearInterval(iv);
+    boom.classList.remove("show"); boom.hidden=true;
+    $(".stage").classList.remove("shake-hard");
+    boomActive=false;
+    goOverview();                 // zurück zur Rätsel-Übersicht
+  }, 5000);
+}
 
 /* ---------------- Professor-Video ---------------- */
 const introVideo=$("#introVideo"), introPlayHint=$("#introPlayHint");
@@ -760,7 +831,11 @@ function openPuzzle(i){
   curIdx=i;
   const r=RS[i];
   $("#pTitle").textContent="Rätsel "+(r.nr ?? (i+1))+": "+r.titel;
-  $("#pQ").textContent=r.frage||"";
+  // Erklärtext nur zeigen, wenn einer hinterlegt ist – sonst direkt die
+  // Optionen/Eingabe (z. B. Auswahl-Seiten mit frage:"").
+  const q=(r.frage||"").trim();
+  $("#pQ").textContent=q;
+  $("#pQ").style.display = q ? "" : "none";
   // alle Blöcke ausblenden
   $("#pEingabe").style.display="none";
   $("#pZuordnung").style.display="none";
@@ -843,10 +918,7 @@ function checkEingabe(){
   if(norm(typed)===norm(r.antwort)){
     solvePuzzle();
   }else{
-    sndNo();
-    const d=$("#pDisplay"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
-    const chk=$("#pKeyboard .key--check"); if(chk) flashNo(chk);
-    const fb=$("#pFeedback"); fb.textContent="Leider falsch – schaut nochmal genau hin. 🔎"; fb.className="feedback no";
+    wrongAnswer();     // Explosion + zurück zur Übersicht
   }
 }
 
@@ -915,21 +987,11 @@ function zuCheck(){
     const fb=$("#zuFeedback"); fb.textContent="Bitte hinter jedes Bild eine Zahl schreiben."; fb.className="feedback no";
     return;
   }
+  // Stimmen alle Zahlen? (ohne Rot-Markierung – ein Fehler löst die Explosion aus.)
   let allOk=true;
-  document.querySelectorAll(".ztile").forEach((t,i)=>{
-    const ok = parseInt(zuVals[i],10)===r.bilder[i].nr;
-    t.classList.remove("active");
-    t.classList.toggle("ok", ok);
-    t.classList.toggle("bad", !ok);
-    if(!ok) allOk=false;
-  });
-  if(allOk){
-    solvePuzzle();
-  }else{
-    sndNo();
-    const chk=$("#zuKeyboard .key--check"); if(chk) flashNo(chk);
-    const fb=$("#zuFeedback"); fb.textContent="Fast! Die rot markierten Bilder stimmen noch nicht. 🔎"; fb.className="feedback no";
-  }
+  zuVals.forEach((v,i)=>{ if(parseInt(v,10)!==r.bilder[i].nr) allOk=false; });
+  if(allOk) solvePuzzle();
+  else      wrongAnswer();     // Explosion + zurück zur Übersicht
 }
 
 /* ---------- Typ "auswahl": eine Antwort anklicken + bestätigen ---------- */
@@ -956,7 +1018,6 @@ function openAuswahl(r){
 $("#auswahlCheck").onclick=()=>{
   initAudio();
   const r=RS[curIdx];
-  const cards=document.querySelectorAll("#auswahlGrid .optcard");
   if(auswahlSel<0){
     const fb=$("#auswahlFeedback"); fb.textContent="Bitte wählt zuerst eine Antwort aus."; fb.className="feedback no";
     return;
@@ -964,10 +1025,7 @@ $("#auswahlCheck").onclick=()=>{
   if(norm(r.optionen[auswahlSel])===norm(r.antwort)){
     solvePuzzle();
   }else{
-    sndNo();
-    const sel=cards[auswahlSel]; if(sel){ sel.classList.remove("sel"); sel.classList.add("bad"); flashNo(sel); }
-    flashNo($("#auswahlCheck"));
-    const fb=$("#auswahlFeedback"); fb.textContent="Leider falsch – messt/schaut nochmal genau hin. 🔎"; fb.className="feedback no";
+    wrongAnswer();     // Explosion + zurück zur Übersicht
   }
 };
 
@@ -1033,29 +1091,21 @@ function onDragEnd(e){
 $("#sortCheck").onclick=()=>{
   initAudio();
   const r=RS[curIdx];
-  // Liegt noch etwas im Sammler?
+  // Liegt noch etwas im Sammler? (kein Fehler, nur ein Hinweis)
   if($("#sortPool").children.length>0){
     const fb=$("#sortFeedback"); fb.textContent="Zieht erst alle Gegenstände auf eine Seite."; fb.className="feedback no";
     return;
   }
+  // Alles einsortiert: stimmt jeder Gegenstand? (ohne Rot-Markierung –
+  // sobald EINER falsch liegt, gibt es die Explosion.)
   let allOk=true;
   document.querySelectorAll("#pSortier .schip").forEach(chip=>{
     const i=+chip.dataset.i;
     const imFloat = !!chip.closest('[data-zone="float"]');
-    const ok = (imFloat === !!r.objekte[i].schwimmt);
-    chip.classList.toggle("ok", ok);
-    chip.classList.toggle("bad", !ok);
-    if(!ok) allOk=false;
+    if(imFloat !== !!r.objekte[i].schwimmt) allOk=false;
   });
-  if(allOk){
-    solvePuzzle();
-  }else{
-    sndNo();
-    flashNo($("#sortCheck"));
-    const fb=$("#sortFeedback");
-    fb.textContent="Fast! Die rot markierten Gegenstände liegen noch auf der falschen Seite. 🔎";
-    fb.className="feedback no";
-  }
+  if(allOk) solvePuzzle();
+  else      wrongAnswer();     // Explosion + zurück zur Übersicht
 };
 
 /* ---------------- Abschluss-Folgeseite ---------------- */
