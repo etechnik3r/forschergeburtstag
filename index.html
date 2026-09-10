@@ -216,15 +216,40 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .ztile.ok{opacity:1; border-color:var(--ok); background:#e6fff1}
 .ztile.bad{opacity:1; border-color:var(--no); background:#ffece9}
 
-/* ---------- Schwimm-Rätsel: Gegenstände anklicken ---------- */
-.obj-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; margin:8px 0 12px}
-.obj{border:1px solid var(--edge); border-radius:14px; background:var(--panel-2); color:var(--ink); cursor:pointer;
-  padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; font-family:var(--sans);
-  font-weight:700; font-size:15px; box-shadow:0 3px 0 rgba(0,0,0,.35); transition:transform .07s, border-color .15s, background .15s}
-.obj .oemoji{font-size:30px; line-height:1}
-.obj:active{transform:translateY(2px)}
-.obj.sel{border-color:var(--info); background:#1c3350; box-shadow:0 0 0 3px rgba(91,157,255,.25)}
+/* ---------- Auswahl-Rätsel: eine Antwort anklicken (pH-Labor, Formel) ---------- */
+.opt-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:8px 0 12px}
+.optcard{border:1px solid var(--edge); border-radius:14px; background:var(--panel-2); color:var(--ink); cursor:pointer;
+  padding:16px 12px; display:flex; align-items:center; justify-content:center; text-align:center; gap:8px;
+  font-family:var(--sans); font-weight:700; font-size:clamp(16px,3.4vw,19px); line-height:1.2;
+  box-shadow:0 3px 0 rgba(0,0,0,.35); transition:transform .07s, border-color .15s, background .15s}
+.optcard:active{transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.35)}
+.optcard.sel{border-color:var(--info); background:#1c3350; box-shadow:0 0 0 3px rgba(91,157,255,.28)}
+.optcard.bad{border-color:var(--no); background:#3a1c1c; box-shadow:0 0 0 3px rgba(255,106,90,.28)}
 .check-row{text-align:center; margin-top:4px}
+
+/* ---------- Sortier-Rätsel: Gegenstände per Drag & Drop einordnen ---------- */
+.sortzone{border:2px dashed var(--edge); border-radius:16px; background:rgba(20,17,60,.5);
+  padding:10px 10px 12px; transition:border-color .15s, background .15s}
+.sortzone.over{border-color:var(--amber); background:rgba(255,182,46,.12)}
+.zone-label{font-family:var(--mono); font-size:14px; letter-spacing:.1em; color:var(--muted); margin:2px 2px 8px}
+.zone-items{display:flex; flex-wrap:wrap; gap:8px; min-height:64px; align-content:flex-start}
+.sort-pool{margin:6px 0 12px; border-style:solid; border-color:var(--edge)}
+.sort-pool .zone-label{color:var(--info)}
+.sort-targets{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px}
+.sort-float .zone-label{color:#7ec7ff}
+.sort-sink .zone-label{color:#ffb3a8}
+@media (orientation:portrait), (max-width:520px){ .sort-targets{grid-template-columns:1fr} }
+.schip{display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px;
+  border:1px solid var(--edge); background:linear-gradient(180deg,#2c286e,#221f57); color:var(--ink);
+  font-family:var(--sans); font-weight:700; font-size:15px; box-shadow:0 3px 0 rgba(0,0,0,.35);
+  cursor:grab; touch-action:none; user-select:none}
+.schip .semoji{font-size:24px; line-height:1}
+.schip.schip-hidden{visibility:hidden}
+.schip.ok{border-color:var(--ok); background:#1a4231; box-shadow:0 0 0 2px rgba(55,214,122,.35)}
+.schip.bad{border-color:var(--no); background:#3a1c1c; box-shadow:0 0 0 2px rgba(255,106,90,.35)}
+/* Der mitgezogene Klon liegt frei über der Seite und folgt dem Finger. */
+.schip-drag{position:fixed; z-index:70; margin:0; cursor:grabbing; pointer-events:none;
+  box-shadow:0 12px 26px rgba(0,0,0,.5); transform:scale(1.06)}
 
 /* Gelöst-Ansicht innerhalb eines Rätsels */
 .done-view{display:none; text-align:center; padding:18px 6px}
@@ -427,11 +452,31 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
         <div class="keyboard" id="zuKeyboard"></div>
       </div>
 
-      <!-- Typ: mehrfach (Schwimmen: mehrere Gegenstände anklicken) -->
-      <div id="pMehrfach" style="display:none">
-        <div class="obj-grid" id="objGrid"></div>
-        <div class="feedback" id="mfFeedback"></div>
-        <div class="check-row"><button class="btn btn--ok" id="mfCheck">✓ Prüfen</button></div>
+      <!-- Typ: auswahl (eine Antwort anklicken, dann bestätigen) -->
+      <div id="pAuswahl" style="display:none">
+        <div class="opt-grid" id="auswahlGrid"></div>
+        <div class="feedback" id="auswahlFeedback"></div>
+        <div class="check-row"><button class="btn btn--ok" id="auswahlCheck">✓ Bestätigen</button></div>
+      </div>
+
+      <!-- Typ: sortier (Gegenstände per Drag & Drop in zwei Zonen ziehen) -->
+      <div id="pSortier" style="display:none">
+        <div class="sortzone sort-pool" data-zone="pool">
+          <div class="zone-label">🧺 Sammler – zieht alles auf die richtige Seite</div>
+          <div class="zone-items" id="sortPool"></div>
+        </div>
+        <div class="sort-targets">
+          <div class="sortzone sort-float" data-zone="float">
+            <div class="zone-label">🌊 Schwimmt</div>
+            <div class="zone-items"></div>
+          </div>
+          <div class="sortzone sort-sink" data-zone="sink">
+            <div class="zone-label">⬇️ Sinkt</div>
+            <div class="zone-items"></div>
+          </div>
+        </div>
+        <div class="feedback" id="sortFeedback"></div>
+        <div class="check-row"><button class="btn btn--ok" id="sortCheck">✓ Prüfen</button></div>
       </div>
 
       <!-- Rätsel gelöst -->
@@ -479,14 +524,13 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
    Videos als MP4 (H.264 + AAC) in DENSELBEN Ordner wie diese Datei legen.
 
    Rätsel-Typen:
-     "zuordnung" – mehrere Bilder, hinter jedes eine Zahl (z. B. 1–16).
+     "zuordnung" – mehrere Bilder, hinter jedes eine Zahl (z. B. 1–18).
      "text"      – Buchstaben-Antwort über die Tastatur.
      "zahl"      – Zahlen-Antwort über das Zahlenfeld.
-     "mehrfach"  – mehrere Gegenstände anklicken; erst wenn GENAU die
-                   richtigen ausgewählt sind, zählt das Rätsel als gelöst.
-
-   HINWEIS zu den Lösungen: Einige Zahlen/Antworten sind noch Platzhalter
-   (mit  // TODO  markiert) – bitte die echten Werte eintragen.
+     "auswahl"   – eine Antwort aus mehreren Optionen anklicken und
+                   bestätigen (z. B. pH-Labor, verschwundene Formel).
+     "sortier"   – Gegenstände per Drag & Drop in zwei Zonen einordnen
+                   (schwimmt / sinkt), dann prüfen.
 ================================================================= */
 const CONFIG = {
   missionsName: "",   // leer = kein Titel-Text
@@ -497,12 +541,55 @@ const CONFIG = {
 
   raetsel: [
 
-    /* --- Rätsel 1: Strom-Rätsel -------------------------------------
+    /* --- Rätsel 1: Das Duftlabor ------------------------------------
+       Drei kleine Dosen (weiß mit rotem Deckel), in jeder ein Duft.
+       Die Kinder riechen und bringen die Dosen in die richtige
+       Reihenfolge; eingegeben wird die dreistellige Zahl.              */
+    { id:"riechen", nr:1, titel:"Das Duftlabor", typ:"zahl",
+      frage:"Riecht an den drei Dosen (weiß mit rotem Deckel). Bringt sie in die richtige Reihenfolge und gebt die dreistellige Zahl ein.",
+      antwort:"231"
+    },
+
+    /* --- Rätsel 2: Das geheime pH-Labor -----------------------------
+       Sechs Reagenzgläser; mit dem pH-Teststreifen den pH-Wert messen.
+       Gesucht ist die stärkste Lauge. Lösung: Soda.                    */
+    { id:"ph", nr:2, titel:"Das geheime pH-Labor", typ:"auswahl",
+      frage:"Bestimmt mit dem pH-Teststreifen den pH-Wert der sechs Reagenzgläser. Welche Substanz ist die stärkste Lauge?",
+      optionen:[ "Wasser", "Seife", "Essig", "Zitronensäure", "Natron", "Soda" ],
+      antwort:"Soda"
+    },
+
+    /* --- Rätsel 3: Was schwimmt – was sinkt? ------------------------
+       Gegenstände liegen im Sammler und werden per Drag & Drop auf die
+       Seite "Schwimmt" oder "Sinkt" gezogen. schwimmt:true = schwimmt. */
+    { id:"schwimmen", nr:3, titel:"Was schwimmt – was sinkt?", typ:"sortier",
+      frage:"Zieht jeden Gegenstand auf die richtige Seite: schwimmt oben, sinkt unten. Dann auf ✓ Prüfen tippen.",
+      objekte:[
+        { name:"Korken",     emoji:"🟤", schwimmt:true  },
+        { name:"Stein",      emoji:"🪨", schwimmt:false },
+        { name:"Holz",       emoji:"🪵", schwimmt:true  },
+        { name:"Schlüssel",  emoji:"🔑", schwimmt:false },
+        { name:"Gummiente",  emoji:"🦆", schwimmt:true  },
+        { name:"Münze",      emoji:"🪙", schwimmt:false }
+      ]
+    },
+
+    /* --- Rätsel 4: Die verschwundene Formel -------------------------
+       Poster an der Wand mit vielen Strukturformeln, dazu sieben
+       Karteikarten. Ein Stoff einer Karteikarte fehlt auf dem Poster.
+       Lösung: Ameisensäure.                                            */
+    { id:"struktur", nr:4, titel:"Die verschwundene Formel", typ:"auswahl",
+      frage:"Auf dem Poster an der Wand seht ihr viele Strukturformeln. Auf einer der sieben Karteikarten steht ein Stoff, der NICHT auf dem Poster zu finden ist. Welcher?",
+      optionen:[ "Alkohol", "Traubenzucker", "Zitronensäure", "Fruchtzucker", "Milchsäure", "Essigsäure", "Ameisensäure" ],
+      antwort:"Ameisensäure"
+    },
+
+    /* --- Rätsel 5: Strom-Rätsel -------------------------------------
        Sechs Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 18.
        Kind tippt ein Bild an, gibt die Zahl ein, dann "✓ Prüfen".
-       -> die echten Lösungszahlen hier eintragen (die 6 Bilder liegen
-          schon im Ordner: elektro_start_1.png … elektro_start_6.png).   */
-    { id:"strom", nr:1, titel:"Stromkreis", typ:"zuordnung",
+       -> Details/Lösungszahlen werden noch besprochen (die 6 Bilder
+          liegen schon im Ordner: elektro_start_1.png … _6.png).        */
+    { id:"strom", nr:5, titel:"Stromkreis", typ:"zuordnung",
       frage:"Miss den Stromkreis: Welche Zahl (1–18) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
       bilder:[
         { bild:"elektro_start_1.png", nr:14 },  // TODO: echte Lösungszahl
@@ -512,56 +599,6 @@ const CONFIG = {
         { bild:"elektro_start_5.png", nr:7  },  // TODO: echte Lösungszahl
         { bild:"elektro_start_6.png", nr:18 }   // TODO: echte Lösungszahl
       ]
-    },
-
-    /* --- Rätsel 2: Strukturformeln ----------------------------------
-       Eine Karteikarte zeigt eine Strukturformel, die NICHT auf dem
-       Plakat/Skizzen an der Wand vorkommt. Lösung: Ameisensäure.        */
-    { id:"struktur", nr:2, titel:"Strukturformeln", typ:"text",
-      frage:"Welche Strukturformel findet ihr auf den Karteikarten von Doktor Zweistein, aber nicht auf seinen Skizzen an der Wand?",
-      antwort:"Ameisensäure"
-    },
-
-    /* --- Rätsel 3: Schwimmen ----------------------------------------
-       Welche Gegenstände schwimmen? Kinder wählen alle richtigen aus.
-       Erst wenn GENAU die schwimmenden ausgewählt sind (und "Prüfen"
-       gedrückt wurde), gilt das Rätsel als gelöst.
-       schwimmt:true = schwimmt.  -> Liste bei Bedarf anpassen.          */
-    { id:"schwimmen", nr:3, titel:"Schwimmt es?", typ:"mehrfach",
-      frage:"Welche Gegenstände schwimmen im Wasser? Wählt alle richtigen aus und drückt dann ✓ Prüfen.",
-      objekte:[
-        { name:"Korken",       emoji:"🟤", schwimmt:true  },
-        { name:"Stein",        emoji:"🪨", schwimmt:false },
-        { name:"Holzklotz",    emoji:"🪵", schwimmt:true  },
-        { name:"Münze",        emoji:"🪙", schwimmt:false },
-        { name:"Apfel",        emoji:"🍎", schwimmt:true  },
-        { name:"Schlüssel",    emoji:"🔑", schwimmt:false },
-        { name:"Gummiente",    emoji:"🦆", schwimmt:true  },
-        { name:"Büroklammer",  emoji:"📎", schwimmt:false },
-        { name:"Blatt",        emoji:"🍃", schwimmt:true  },
-        { name:"Nagel",        emoji:"🔩", schwimmt:false },
-        { name:"Schwamm",      emoji:"🧽", schwimmt:true  },
-        { name:"Murmel",       emoji:"🔵", schwimmt:false },
-        { name:"Feder",        emoji:"🪶", schwimmt:true  },
-        { name:"Löffel",       emoji:"🥄", schwimmt:false },
-        { name:"Plastikball",  emoji:"⚽", schwimmt:true  }
-      ]
-    },
-
-    /* --- Rätsel 4: pH-Werte -----------------------------------------
-       Durchnummerierte Reagenzgläser; gesucht ist die Nummer des
-       Reagenzglases mit dem sauersten pH-Wert.                          */
-    { id:"ph", nr:4, titel:"pH-Werte", typ:"zahl",
-      frage:"Messt die pH-Werte: Das Reagenzglas mit welcher Nummer hat den sauersten pH-Wert?",
-      antwort:"7"   // TODO: echte Reagenzglas-Nummer eintragen
-    },
-
-    /* --- Rätsel 5: Riechen ------------------------------------------
-       Drei nummerierte Dosen in die richtige Reihenfolge bringen.
-       Eingabe: die dreistellige Zahl (Reihenfolge der Dosen-Nummern).  */
-    { id:"riechen", nr:5, titel:"Die Geruchsprobe", typ:"zahl",
-      frage:"Riecht an den drei nummerierten Dosen und bringt sie in die richtige Reihenfolge. Gebt die dreistellige Zahl ein.",
-      antwort:"231"   // TODO: echte Reihenfolge eintragen
     }
   ],
 
@@ -727,11 +764,13 @@ function openPuzzle(i){
   // alle Blöcke ausblenden
   $("#pEingabe").style.display="none";
   $("#pZuordnung").style.display="none";
-  $("#pMehrfach").style.display="none";
+  $("#pAuswahl").style.display="none";
+  $("#pSortier").style.display="none";
   $("#pSolved").classList.remove("show");
 
   if(r.typ==="zuordnung")      openZuordnung(r);
-  else if(r.typ==="mehrfach")  openMehrfach(r);
+  else if(r.typ==="auswahl")   openAuswahl(r);
+  else if(r.typ==="sortier")   openSortier(r);
   else                         openEingabe(r);   // "text" & "zahl"
 
   show("screen-puzzle");
@@ -744,7 +783,8 @@ function solvePuzzle(){
   sndOk(); burst(60);
   $("#pEingabe").style.display="none";
   $("#pZuordnung").style.display="none";
-  $("#pMehrfach").style.display="none";
+  $("#pAuswahl").style.display="none";
+  $("#pSortier").style.display="none";
   $("#pSolved").classList.add("show");
 }
 
@@ -892,40 +932,128 @@ function zuCheck(){
   }
 }
 
-/* ---------- Typ "mehrfach": Schwimm-Rätsel ---------- */
-let mfSel=new Set();
-function openMehrfach(r){
-  mfSel=new Set();
-  const grid=$("#objGrid"); grid.innerHTML="";
-  r.objekte.forEach((o,i)=>{
-    const b=document.createElement("button"); b.type="button"; b.className="obj"; b.dataset.i=i;
-    b.innerHTML=`<span class="oemoji">${o.emoji||"❓"}</span><span>${o.name}</span>`;
+/* ---------- Typ "auswahl": eine Antwort anklicken + bestätigen ---------- */
+let auswahlSel=-1;
+function openAuswahl(r){
+  auswahlSel=-1;
+  const grid=$("#auswahlGrid"); grid.innerHTML="";
+  r.optionen.forEach((opt,i)=>{
+    const b=document.createElement("button"); b.type="button"; b.className="optcard"; b.dataset.i=i;
+    b.textContent=opt;
     b.addEventListener("click", ()=>{
       initAudio();
-      if(mfSel.has(i)){ mfSel.delete(i); b.classList.remove("sel"); }
-      else            { mfSel.add(i);   b.classList.add("sel"); }
-      // Kein Richtig/Falsch beim Anklicken – erst beim Prüfen.
-      $("#mfFeedback").textContent=""; $("#mfFeedback").className="feedback";
+      auswahlSel=i;
+      document.querySelectorAll("#auswahlGrid .optcard").forEach((c,k)=>{
+        c.classList.toggle("sel", k===i); c.classList.remove("bad");
+      });
+      $("#auswahlFeedback").textContent=""; $("#auswahlFeedback").className="feedback";
     });
     grid.appendChild(b);
   });
-  $("#mfFeedback").textContent=""; $("#mfFeedback").className="feedback";
-  $("#pMehrfach").style.display="block";
+  $("#auswahlFeedback").textContent=""; $("#auswahlFeedback").className="feedback";
+  $("#pAuswahl").style.display="block";
 }
-$("#mfCheck").onclick=()=>{
+$("#auswahlCheck").onclick=()=>{
   initAudio();
   const r=RS[curIdx];
-  // Menge der richtigen Indizes
-  const richtig=new Set();
-  r.objekte.forEach((o,i)=>{ if(o.schwimmt) richtig.add(i); });
-  const gleich = mfSel.size===richtig.size && [...mfSel].every(i=>richtig.has(i));
-  if(gleich){
+  const cards=document.querySelectorAll("#auswahlGrid .optcard");
+  if(auswahlSel<0){
+    const fb=$("#auswahlFeedback"); fb.textContent="Bitte wählt zuerst eine Antwort aus."; fb.className="feedback no";
+    return;
+  }
+  if(norm(r.optionen[auswahlSel])===norm(r.antwort)){
     solvePuzzle();
   }else{
     sndNo();
-    flashNo($("#mfCheck"));
-    const fb=$("#mfFeedback");
-    fb.textContent="Noch nicht ganz – probiert weiter aus, welche Gegenstände wirklich schwimmen. 🔎";
+    const sel=cards[auswahlSel]; if(sel){ sel.classList.remove("sel"); sel.classList.add("bad"); flashNo(sel); }
+    flashNo($("#auswahlCheck"));
+    const fb=$("#auswahlFeedback"); fb.textContent="Leider falsch – messt/schaut nochmal genau hin. 🔎"; fb.className="feedback no";
+  }
+};
+
+/* ---------- Typ "sortier": Drag & Drop in zwei Zonen ---------- */
+/* Zeiger-basiert (funktioniert mit Maus UND Touch auf dem Tablet):
+   ein Klon folgt dem Finger, beim Loslassen landet der Gegenstand in
+   der Zone unter dem Finger (Sammler, Schwimmt oder Sinkt). */
+let drag=null;
+function openSortier(r){
+  const pool=$("#sortPool");
+  // Alle Zonen leeren
+  document.querySelectorAll("#pSortier .zone-items").forEach(z=>z.innerHTML="");
+  r.objekte.forEach((o,i)=>{
+    const chip=document.createElement("div"); chip.className="schip"; chip.dataset.i=i;
+    chip.innerHTML=`<span class="semoji">${o.emoji||"❓"}</span><span>${o.name}</span>`;
+    chip.addEventListener("pointerdown", e=>{ e.preventDefault(); initAudio(); startDrag(chip, e); });
+    pool.appendChild(chip);
+  });
+  $("#sortFeedback").textContent=""; $("#sortFeedback").className="feedback";
+  $("#pSortier").style.display="block";
+}
+function startDrag(chip, e){
+  const rect=chip.getBoundingClientRect();
+  const clone=chip.cloneNode(true);
+  clone.classList.add("schip-drag");
+  clone.style.width=rect.width+"px";
+  document.body.appendChild(clone);
+  chip.classList.add("schip-hidden");
+  chip.classList.remove("ok","bad");
+  drag={chip, clone, offX:e.clientX-rect.left, offY:e.clientY-rect.top};
+  try{ chip.setPointerCapture(e.pointerId); }catch(_){}
+  chip.addEventListener("pointermove", onDragMove);
+  chip.addEventListener("pointerup", onDragEnd);
+  chip.addEventListener("pointercancel", onDragEnd);
+  positionClone(e.clientX, e.clientY);
+}
+function zoneUnder(x,y){
+  const el=document.elementFromPoint(x,y);   // Klon hat pointer-events:none
+  return el ? el.closest(".sortzone") : null;
+}
+function positionClone(x,y){
+  if(!drag) return;
+  drag.clone.style.left=(x-drag.offX)+"px";
+  drag.clone.style.top =(y-drag.offY)+"px";
+  const zone=zoneUnder(x,y);
+  document.querySelectorAll("#pSortier .sortzone").forEach(z=>z.classList.toggle("over", z===zone));
+}
+function onDragMove(e){ if(drag) positionClone(e.clientX, e.clientY); }
+function onDragEnd(e){
+  if(!drag) return;
+  const zone=zoneUnder(e.clientX, e.clientY);
+  const chip=drag.chip;
+  chip.classList.remove("schip-hidden");
+  drag.clone.remove();
+  document.querySelectorAll("#pSortier .sortzone").forEach(z=>z.classList.remove("over"));
+  chip.removeEventListener("pointermove", onDragMove);
+  chip.removeEventListener("pointerup", onDragEnd);
+  chip.removeEventListener("pointercancel", onDragEnd);
+  if(zone){ zone.querySelector(".zone-items").appendChild(chip); }  // sonst bleibt er, wo er war
+  drag=null;
+  $("#sortFeedback").textContent=""; $("#sortFeedback").className="feedback";
+}
+$("#sortCheck").onclick=()=>{
+  initAudio();
+  const r=RS[curIdx];
+  // Liegt noch etwas im Sammler?
+  if($("#sortPool").children.length>0){
+    const fb=$("#sortFeedback"); fb.textContent="Zieht erst alle Gegenstände auf eine Seite."; fb.className="feedback no";
+    return;
+  }
+  let allOk=true;
+  document.querySelectorAll("#pSortier .schip").forEach(chip=>{
+    const i=+chip.dataset.i;
+    const imFloat = !!chip.closest('[data-zone="float"]');
+    const ok = (imFloat === !!r.objekte[i].schwimmt);
+    chip.classList.toggle("ok", ok);
+    chip.classList.toggle("bad", !ok);
+    if(!ok) allOk=false;
+  });
+  if(allOk){
+    solvePuzzle();
+  }else{
+    sndNo();
+    flashNo($("#sortCheck"));
+    const fb=$("#sortFeedback");
+    fb.textContent="Fast! Die rot markierten Gegenstände liegen noch auf der falschen Seite. 🔎";
     fb.className="feedback no";
   }
 };
