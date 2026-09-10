@@ -354,7 +354,6 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
   <div class="boom-core">
     <div class="boom-emoji">💥</div>
     <div class="boom-title">PUFF!</div>
-    <div class="boom-sub">Das Experiment ist explodiert! 🧪💨</div>
     <div class="boom-count" id="boomCount"></div>
   </div>
 </div>
@@ -523,8 +522,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
   <!-- 5) ABSCHLUSS-FOLGESEITE: Abschlussvideo + Lösungswort + Text -->
   <section class="screen" id="screen-final">
     <div class="console center">
-      <div class="eyebrow">Mission erfüllt</div>
-      <h1>🏆 Geschafft!</h1>
+      <h1>🏆 Mission geschafft!</h1>
 
       <!-- Abschlussvideo (erscheint nur, wenn eine Datei hinterlegt ist). -->
       <div class="viewport" id="outroViewport" hidden>
@@ -536,9 +534,12 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
         <p class="lead">🎬 Abschlussvideo noch nicht hinterlegt. Der Rest funktioniert trotzdem.</p>
       </div>
 
-      <p class="lead">Euer geheimes Lösungswort:</p>
-      <div class="reveal" id="reveal"></div>
-      <p class="lead" id="finalMsg"></p>
+      <!-- Lösungswort: bleibt verborgen, bis das Abschlussvideo zu Ende ist. -->
+      <div id="finalReveal" hidden>
+        <p class="lead">Euer geheimes Lösungswort:</p>
+        <div class="reveal" id="reveal"></div>
+        <p class="lead" id="finalMsg"></p>
+      </div>
     </div>
   </section>
 
@@ -588,7 +589,7 @@ const CONFIG = {
        Die Kinder riechen und bringen die Dosen in die richtige
        Reihenfolge; eingegeben wird die dreistellige Zahl.              */
     { id:"riechen", nr:2, titel:"Das Duftlabor", typ:"zahl",
-      frage:"Riecht an den drei Dosen (weiß mit rotem Deckel). Bringt sie in die richtige Reihenfolge und gebt die dreistellige Zahl ein.",
+      frage:"",
       antwort:"231"
     },
 
@@ -598,7 +599,7 @@ const CONFIG = {
        -> Details/Lösungszahlen werden noch besprochen (die 6 Bilder
           liegen schon im Ordner: elektro_start_1.png … _6.png).        */
     { id:"strom", nr:3, titel:"Stromkreis", typ:"zuordnung",
-      frage:"Miss den Stromkreis: Welche Zahl (1–18) gehört hinter jedes Bild? Tippt ein Bild an, gebt seine Zahl ein und drückt zum Schluss ✓ Prüfen.",
+      frage:"",
       bilder:[
         { bild:"elektro_start_1.png", nr:14 },  // TODO: echte Lösungszahl
         { bild:"elektro_start_2.png", nr:3  },  // TODO: echte Lösungszahl
@@ -613,7 +614,7 @@ const CONFIG = {
        Gegenstände liegen im Sammler und werden per Drag & Drop auf die
        Seite "Schwimmt" oder "Sinkt" gezogen. schwimmt:true = schwimmt. */
     { id:"schwimmen", nr:4, titel:"Was schwimmt – was sinkt?", typ:"sortier",
-      frage:"Zieht jeden Gegenstand auf die richtige Seite: schwimmt oben, sinkt unten. Dann auf ✓ Prüfen tippen.",
+      frage:"",
       objekte:[
         { name:"Korken",     emoji:"🟤", schwimmt:true  },
         { name:"Stein",      emoji:"🪨", schwimmt:false },
@@ -638,8 +639,8 @@ const CONFIG = {
   // Abschlussvideo auf der Abschluss-Folgeseite. Datei in DIESEN Ordner legen.
   // Fehlt die Datei, wird das Feld einfach ausgeblendet – alles andere läuft.
   abschlussVideo: "abschluss-video.mp4",
-  loesungswort:   "FORSCHER",
-  belohnungstext: "Mission erfüllt! Ihr seid jetzt echte Nachwuchs-Forscher. 🥳"
+  loesungswort:   "Hefe",
+  belohnungstext: ""
 };
 /* ================================================================
    ▲▲▲  AB HIER NICHTS MEHR ÄNDERN NÖTIG  ▲▲▲
@@ -1114,15 +1115,18 @@ let outroStarted=false;
 function playOutro(){
   const vp=$("#outroViewport"), err=$("#outroError");
   outroPlayHint.classList.remove("show"); err.classList.remove("show");
-  if(!CONFIG.abschlussVideo){ vp.hidden=true; return; }   // kein Video hinterlegt
+  if(!CONFIG.abschlussVideo){ vp.hidden=true; revealSolution(); return; }   // kein Video -> Wort direkt zeigen
   vp.hidden=false;
   outroVideo.src=CONFIG.abschlussVideo; outroVideo.load();
   const p=outroVideo.play(); if(p) p.catch(()=>outroPlayHint.classList.add("show"));
 }
 outroVideo.addEventListener("play",  ()=> outroPlayHint.classList.remove("show"));
+// Lösungswort erst zeigen, wenn das Video wirklich zu Ende ist.
+outroVideo.addEventListener("ended", revealSolution);
 outroVideo.addEventListener("error", ()=>{
-  // Datei fehlt/defekt -> Video ausblenden, freundlichen Hinweis zeigen.
-  if(outroVideo.src){ $("#outroViewport").hidden=true; $("#outroError").classList.add("show"); }
+  // Datei fehlt/defekt -> Video ausblenden, Hinweis zeigen UND das
+  // Lösungswort trotzdem freigeben (sonst bliebe es für immer verborgen).
+  if(outroVideo.src){ $("#outroViewport").hidden=true; $("#outroError").classList.add("show"); revealSolution(); }
 });
 $("#outroViewport").addEventListener("click", ()=>{
   if(outroVideo.paused){ outroVideo.play(); }
@@ -1131,15 +1135,26 @@ $("#outroViewport").addEventListener("click", ()=>{
 
 function goFinal(){
   saveState(true);
+  solutionShown=false;
+  $("#finalReveal").hidden=true;      // Lösungswort erst nach dem Video
   show("screen-final");
+  playOutro();                        // Video starten; ended/error -> revealSolution()
+}
+
+/* Lösungswort einblenden – wird erst nach Videoende (oder wenn kein Video
+   vorhanden ist) aufgerufen. */
+let solutionShown=false;
+function revealSolution(){
+  if(solutionShown) return;
+  solutionShown=true;
+  $("#finalReveal").hidden=false;
   const w=$("#reveal"); w.innerHTML="";
   CONFIG.loesungswort.split("").forEach((ch,i)=>{
     const s=document.createElement("span"); s.textContent=ch;
     s.style.animationDelay=(0.12+i*0.1)+"s"; w.appendChild(s);
   });
-  $("#finalMsg").textContent=CONFIG.belohnungstext;
-  // Abschlussvideo nur einmal automatisch starten (nicht bei jedem Rücksprung).
-  if(!outroStarted){ outroStarted=true; playOutro(); }
+  const msg=(CONFIG.belohnungstext||"").trim();
+  $("#finalMsg").textContent=msg; $("#finalMsg").style.display=msg?"":"none";
   sndWin(); burst(140); setTimeout(()=>burst(90),500);
 }
 

@@ -12,7 +12,7 @@
        Sofort aus dem Cache anzeigen (schnell/offline) UND im Hintergrund
        eine frische Kopie holen, die beim nächsten Mal genutzt wird. */
 
-const CACHE = "forscher-v8";
+const CACHE = "forscher-v9";
 const CORE = [
   "./",
   "./index.html",
