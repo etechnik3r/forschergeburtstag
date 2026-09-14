@@ -217,19 +217,20 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .numpad .key{height:clamp(58px,13vw,74px); font-size:clamp(24px,7vw,32px); max-width:none}
 
 /* ---------- Strom-Rätsel: 6 Bilder -> je eine Zahl (1–18) ---------- */
-/* Wissenschaftliche Eingabekonsole: klare Messplätze in 3 Spalten. */
-.zu-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:8px 0 12px}
-.ztile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff; padding:10px 6px 8px;
-  display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer;
+/* Wissenschaftliche Eingabekonsole: die Symbole stehen untereinander,
+   das Zahlenfeld steht jeweils dahinter (rechts). */
+.zu-tiles{display:flex; flex-direction:column; gap:10px; margin:8px auto 12px; max-width:520px}
+.ztile{position:relative; border:2px solid var(--edge); border-radius:14px; background:#eef0ff; padding:8px 14px 8px 12px;
+  display:flex; flex-direction:row; align-items:center; gap:14px; cursor:pointer;
   transition:box-shadow .15s, border-color .2s, background .2s; opacity:.85}
-.ztile img{width:100%; height:clamp(50px,10vw,92px); object-fit:contain; display:block}
+.ztile img{width:auto; height:clamp(46px,8vw,72px); object-fit:contain; display:block; flex:0 0 auto}
 .ztile-num{position:absolute; top:-10px; left:-8px; width:26px; height:26px; border-radius:50%;
   background:var(--panel-2); border:1px solid var(--edge); color:var(--muted); font-family:var(--mono);
   font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center}
-.zin{width:100%; height:42px; border-radius:10px; border:1px solid #b8bce0; background:#fff; color:#1c2233;
-  font-family:var(--mono); font-weight:700; font-size:24px; display:flex; align-items:center; justify-content:center}
+.zin{width:96px; flex:0 0 auto; margin-left:auto; height:48px; border-radius:10px; border:1px solid #b8bce0;
+  background:#fff; color:#1c2233; font-family:var(--mono); font-weight:700; font-size:26px;
+  display:flex; align-items:center; justify-content:center}
 .zin .ph{color:#9aa; font-size:14px; font-weight:400}
-@media (orientation:portrait), (max-width:520px){ .zu-tiles{grid-template-columns:repeat(2,1fr)} }
 .ztile.active{opacity:1; border-color:var(--amber); box-shadow:0 0 0 3px rgba(255,182,46,.3)}
 .ztile.active .zin{border-color:var(--amber)}
 .ztile.ok{opacity:1; border-color:var(--ok); background:#e6fff1}
@@ -601,12 +602,12 @@ const CONFIG = {
     { id:"strom", nr:3, titel:"Stromkreis", typ:"zuordnung",
       frage:"",
       bilder:[
-        { bild:"elektro_start_1.png", nr:14 },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_2.png", nr:3  },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_3.png", nr:9  },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_4.png", nr:16 },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_5.png", nr:7  },  // TODO: echte Lösungszahl
-        { bild:"elektro_start_6.png", nr:18 }   // TODO: echte Lösungszahl
+        { bild:"elektro_start_1.png", nr:9  },  // Mikroskop
+        { bild:"elektro_start_2.png", nr:13 },  // Virus
+        { bild:"elektro_start_3.png", nr:17 },  // Lampe
+        { bild:"elektro_start_4.png", nr:7  },  // Atommodell
+        { bild:"elektro_start_5.png", nr:11 },  // Reagenzglas
+        { bild:"elektro_start_6.png", nr:6  }   // Magnet
       ]
     },
 
