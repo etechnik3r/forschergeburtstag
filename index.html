@@ -212,7 +212,7 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .key--check{flex:2.2 1 0; background:var(--ok); color:var(--on-ok); border-color:transparent}
 .numpad .key{height:clamp(58px,13vw,74px); font-size:clamp(24px,7vw,32px); max-width:none}
 
-/* ---------- Strom-Rätsel: 6 Bilder -> je eine Zahl (1–18) ---------- */
+/* ---------- Strom-Rätsel: 6 Symbole -> je eine Zahl (bis 160) ---------- */
 /* Wissenschaftliche Eingabekonsole: die Symbole stehen untereinander,
    das Zahlenfeld steht jeweils dahinter (rechts). */
 .zu-tiles{display:flex; flex-direction:column; gap:10px; margin:8px auto 12px; max-width:520px}
@@ -587,19 +587,19 @@ const CONFIG = {
     },
 
     /* --- Rätsel 3: Strom-Rätsel -------------------------------------
-       Sechs Symbole stehen untereinander, dahinter je eine Zahl (1–18).
+       Sechs Symbole stehen untereinander, dahinter je eine Zahl.
        Reihenfolge (oben->unten) mit Lösung und passender Bilddatei:
-         Mikroskop=9 (_1), Virus=13 (_6), Lampe=17 (_5),
-         Atommodell=7 (_4), Reagenzglas=11 (_3), Magnet=6 (_2).         */
+         Mikroskop=10 (_1), Virus=40 (_6), Lampe=70 (_5),
+         Atommodell=100 (_4), Reagenzglas=130 (_3), Magnet=160 (_2).    */
     { id:"strom", nr:3, titel:"Stromkreis", typ:"zuordnung",
       frage:"",
       bilder:[
-        { bild:"elektro_start_1.png", nr:9  },  // Mikroskop   (oben)
-        { bild:"elektro_start_6.png", nr:13 },  // Virus
-        { bild:"elektro_start_5.png", nr:17 },  // Lampe
-        { bild:"elektro_start_4.png", nr:7  },  // Atommodell
-        { bild:"elektro_start_3.png", nr:11 },  // Reagenzglas
-        { bild:"elektro_start_2.png", nr:6  }   // Magnet       (unten)
+        { bild:"elektro_start_1.png", nr:10  },  // Mikroskop   (oben)
+        { bild:"elektro_start_6.png", nr:40  },  // Virus
+        { bild:"elektro_start_5.png", nr:70  },  // Lampe
+        { bild:"elektro_start_4.png", nr:100 },  // Atommodell
+        { bild:"elektro_start_3.png", nr:130 },  // Reagenzglas
+        { bild:"elektro_start_2.png", nr:160 }   // Magnet       (unten)
       ]
     },
 
@@ -942,8 +942,8 @@ function renderZu(){
 }
 function zuAdd(c){
   let v=zuVals[zuActive]+c;
-  if(v.length>2) return;
-  if(parseInt(v,10)>18) return;          // nur 1–18 zulassen
+  if(v.length>3) return;                  // bis zu 3 Stellen (max. 160)
+  if(parseInt(v,10)>160) return;
   zuVals[zuActive]=v; renderZu();
   document.querySelectorAll(".ztile")[zuActive].classList.remove("ok","bad");
 }
