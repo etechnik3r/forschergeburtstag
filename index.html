@@ -151,24 +151,20 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .reveal-next.show{display:block; animation:in .4s ease both}
 
 /* ---------- Rätsel-Übersicht ---------- */
-.raetsel-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin:10px 0 6px}
-.rcard{position:relative; border:1px solid var(--edge); border-radius:16px; background:var(--panel-2); color:var(--ink);
-  padding:18px 16px; cursor:pointer; text-align:left; display:flex; align-items:center; gap:14px; width:100%;
-  font-family:var(--sans); box-shadow:0 4px 0 rgba(0,0,0,.35); transition:transform .07s, box-shadow .15s, border-color .2s}
-.rcard:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.35)}
-.rcard .rnum{width:48px; height:48px; flex:0 0 auto; border-radius:12px; background:var(--primary); color:#fff;
-  font-family:var(--mono); font-weight:700; font-size:22px; display:flex; align-items:center; justify-content:center}
+/* Clean & großzügig: die Rätsel-Knöpfe dürfen groß werden. */
+.raetsel-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; margin:16px 0 8px}
+.rcard{position:relative; border:1px solid var(--edge); border-radius:20px; background:var(--panel-2); color:var(--ink);
+  padding:28px 24px; cursor:pointer; text-align:left; display:flex; align-items:center; gap:20px; width:100%;
+  font-family:var(--sans); box-shadow:0 5px 0 rgba(0,0,0,.35); transition:transform .07s, box-shadow .15s, border-color .2s}
+.rcard:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.rcard .rnum{width:64px; height:64px; flex:0 0 auto; border-radius:16px; background:var(--primary); color:#fff;
+  font-family:var(--mono); font-weight:700; font-size:30px; display:flex; align-items:center; justify-content:center}
 .rcard .rmeta{flex:1 1 auto; min-width:0}
-.rcard .rtitle{font-weight:700; font-size:19px; line-height:1.15}
-.rcard .rstatus{font-family:var(--mono); font-size:13px; color:var(--muted); margin-top:3px}
+.rcard .rtitle{font-weight:700; font-size:clamp(20px,3.4vw,25px); line-height:1.18}
 .rcard.done{border-color:var(--ok); background:linear-gradient(180deg,#1a4231,#123726)}
 .rcard.done .rnum{background:var(--ok); color:var(--on-ok)}
-.rcard.done .rstatus{color:var(--ok)}
-.rcard .rcheck{position:absolute; top:9px; right:12px; color:var(--ok); font-size:24px; font-weight:700; display:none}
+.rcard .rcheck{position:absolute; top:12px; right:16px; color:var(--ok); font-size:28px; font-weight:700; display:none}
 .rcard.done .rcheck{display:block}
-.ov-progress{display:flex; align-items:center; gap:10px}
-.ov-bar{flex:1 1 auto; height:12px; border-radius:8px; background:var(--panel-2); border:1px solid var(--edge); overflow:hidden}
-.ov-bar i{display:block; height:100%; width:0; background:var(--ok); border-radius:8px; transition:width .5s ease}
 
 /* Abschluss-Knopf: IMMER sichtbar. Gesperrt (ausgegraut) bis alle Rätsel
    gelöst sind, dann leuchtet er grün und pulsiert als deutlicher Hinweis. */
@@ -443,8 +439,6 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
           <div class="readout" id="ovCount">0 / 0 gelöst</div>
         </div>
       </div>
-      <p class="lead center">Wählt ein Rätsel – ihr könnt sie in beliebiger Reihenfolge lösen.</p>
-      <div class="ov-progress"><div class="ov-bar"><i id="ovBar"></i></div></div>
       <div class="raetsel-grid" id="raetselGrid"></div>
 
       <!-- Immer sichtbar: gesperrt, bis ALLE Rätsel gelöst sind. -->
@@ -453,7 +447,6 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
           <span class="lock-emoji" id="finalIcon">🔒</span>
           <span id="finalLabel">Abschluss</span>
         </button>
-        <p class="final-hint" id="finalHint">Löst erst alle Rätsel – dann öffnet sich der Abschluss.</p>
       </div>
     </div>
   </section>
@@ -464,7 +457,6 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
       <div class="missionbar">
         <button class="btn back-btn" id="backBtn">← Übersicht</button>
         <div class="title">
-          <div class="eyebrow">Rätsel</div>
           <div class="readout" id="pTitle">Rätsel</div>
         </div>
       </div>
@@ -595,19 +587,19 @@ const CONFIG = {
     },
 
     /* --- Rätsel 3: Strom-Rätsel -------------------------------------
-       Sechs Bilder; hinter jedes Bild kommt eine Zahl zwischen 1 und 18.
-       Kind tippt ein Bild an, gibt die Zahl ein, dann "✓ Prüfen".
-       -> Details/Lösungszahlen werden noch besprochen (die 6 Bilder
-          liegen schon im Ordner: elektro_start_1.png … _6.png).        */
+       Sechs Symbole stehen untereinander, dahinter je eine Zahl (1–18).
+       Reihenfolge (oben->unten) mit Lösung und passender Bilddatei:
+         Mikroskop=9 (_1), Virus=13 (_6), Lampe=17 (_5),
+         Atommodell=7 (_4), Reagenzglas=11 (_3), Magnet=6 (_2).         */
     { id:"strom", nr:3, titel:"Stromkreis", typ:"zuordnung",
       frage:"",
       bilder:[
-        { bild:"elektro_start_1.png", nr:9  },  // Mikroskop
-        { bild:"elektro_start_2.png", nr:13 },  // Virus
-        { bild:"elektro_start_3.png", nr:17 },  // Lampe
+        { bild:"elektro_start_1.png", nr:9  },  // Mikroskop   (oben)
+        { bild:"elektro_start_6.png", nr:13 },  // Virus
+        { bild:"elektro_start_5.png", nr:17 },  // Lampe
         { bild:"elektro_start_4.png", nr:7  },  // Atommodell
-        { bild:"elektro_start_5.png", nr:11 },  // Reagenzglas
-        { bild:"elektro_start_6.png", nr:6  }   // Magnet
+        { bild:"elektro_start_3.png", nr:11 },  // Reagenzglas
+        { bild:"elektro_start_2.png", nr:6  }   // Magnet       (unten)
       ]
     },
 
@@ -780,34 +772,26 @@ function buildOverview(){
     card.type="button"; card.className="rcard"+(isDone?" done":"");
     card.innerHTML =
       `<div class="rnum">${r.nr ?? (i+1)}</div>`+
-      `<div class="rmeta"><div class="rtitle">${r.titel}</div>`+
-      `<div class="rstatus">${isDone?"✓ gelöst":"offen · tippen"}</div></div>`+
+      `<div class="rmeta"><div class="rtitle">${r.titel}</div></div>`+
       `<div class="rcheck">✓</div>`;
     card.onclick=()=>{ initAudio(); openPuzzle(i); };
     grid.appendChild(card);
   });
   const n=solved.size, total=RS.length;
   $("#ovCount").textContent = n+" / "+total+" gelöst";
-  $("#ovBar").style.width = total ? Math.round(n/total*100)+"%" : "0%";
 
   // Abschluss-Knopf ist IMMER sichtbar. Gesperrt (ausgegraut), bis alle
   // Rätsel gelöst sind – dann leuchtet er grün und pulsiert.
   const allDone = (n===total && total>0);
-  const btn=$("#toFinalBtn"), hint=$("#finalHint"),
-        icon=$("#finalIcon"), label=$("#finalLabel");
+  const btn=$("#toFinalBtn"), icon=$("#finalIcon"), label=$("#finalLabel");
   if(allDone){
     btn.classList.remove("is-locked"); btn.classList.add("is-ready");
     icon.textContent="🏆"; label.textContent="Zum Abschluss";
-    hint.textContent="Alle Rätsel gelöst – jetzt könnt ihr den Abschluss öffnen!";
-    hint.className="final-hint ready";
     // Beim ersten vollständigen Lösen kurz feiern.
     if(!finalCelebrated){ finalCelebrated=true; setTimeout(()=>{ sndWin(); burst(90); }, 250); }
   }else{
     btn.classList.remove("is-ready"); btn.classList.add("is-locked");
     icon.textContent="🔒"; label.textContent="Abschluss";
-    const offen = total - n;
-    hint.textContent = "Noch "+offen+(offen===1?" Rätsel":" Rätsel")+" offen – löst erst alle, dann öffnet sich der Abschluss.";
-    hint.className="final-hint";
     finalCelebrated=false;
   }
 }
@@ -815,16 +799,13 @@ $("#backBtn").onclick   = goOverview;
 $("#pBackToOv").onclick = goOverview;
 $("#toFinalBtn").onclick= ()=>{
   initAudio();
-  // Freigeschaltet? Dann zur Abschluss-Folgeseite. Sonst nur Hinweis zeigen.
-  if($("#toFinalBtn").classList.contains("is-ready")){
+  // Freigeschaltet? Dann zur Abschluss-Folgeseite. Sonst nur kurz wackeln.
+  const btn=$("#toFinalBtn");
+  if(btn.classList.contains("is-ready")){
     goFinal();
   }else{
     sndNo();
-    const offen = RS.length - solved.size;
-    const hint=$("#finalHint");
-    hint.textContent = "🔒 Erst müssen alle Rätsel gelöst werden – noch "+offen+(offen===1?" Rätsel":" Rätsel")+" offen.";
-    hint.className="final-hint";
-    hint.classList.remove("shake"); void hint.offsetWidth; hint.classList.add("shake");
+    btn.classList.remove("shake-hard"); void btn.offsetWidth; btn.classList.add("shake-hard");
   }
 };
 
