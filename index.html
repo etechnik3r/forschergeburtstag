@@ -321,6 +321,23 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 .chapters button:active{transform:translateY(2px)}
 .chapters button.done{border-color:var(--ok); color:var(--ok)}
 
+/* Als-gelöst-Umschalter: eine Zeile pro Rätsel mit Ampel-Schalter. */
+.solvelist{display:flex; flex-direction:column; gap:8px; margin:6px 0 2px}
+.solverow{display:flex; align-items:center; gap:12px; text-align:left; cursor:pointer;
+  padding:10px 12px; border-radius:12px; border:1px solid var(--edge); background:var(--panel-2);
+  color:var(--ink); font-family:var(--sans); font-weight:700; font-size:15px}
+.solverow:active{transform:translateY(2px)}
+.solverow .slabel{flex:1 1 auto; min-width:0}
+/* Toggle-Pille: aus (grau) / an (grün). */
+.stoggle{flex:0 0 auto; width:52px; height:30px; border-radius:16px; background:#3a3a55;
+  border:1px solid var(--edge); position:relative; transition:background .18s}
+.stoggle::after{content:""; position:absolute; top:2px; left:2px; width:24px; height:24px; border-radius:50%;
+  background:#e8e6ff; box-shadow:0 2px 4px rgba(0,0,0,.4); transition:left .18s}
+.solverow.on{border-color:var(--ok)}
+.solverow.on .stoggle{background:var(--ok)}
+.solverow.on .stoggle::after{left:24px}
+.solverow.on .slabel{color:var(--ok)}
+
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001s !important; transition-duration:.05s !important}
   .viewport::before{display:none}
@@ -383,6 +400,10 @@ h1{font-size:clamp(26px,6vw,46px); margin:6px 0 6px; letter-spacing:.01em; line-
 
       <div class="opt-sep">Direkt anspringen</div>
       <div class="chapters" id="chapters"></div>
+
+      <div class="opt-sep">Als gelöst markieren</div>
+      <p class="opt-note">Tippt ein Rätsel an, um es auf gelöst (grün) oder wieder offen zu schalten.</p>
+      <div class="solvelist" id="solveList"></div>
 
       <div class="opt-sep">Spielstand</div>
       <button class="btn opt btn--danger" id="resetBtn">↺ Spiel komplett zurücksetzen</button>
@@ -627,12 +648,22 @@ const CONFIG = {
       frage:"",
       optionen:[ "Wasser", "Seife", "Essig", "Zitronensäure", "Natron", "Soda" ],
       antwort:"Soda"
+    },
+
+    /* --- Rätsel 6: Das calciumreiche Wasser ------------------------
+       Drei Wasserproben; gesucht ist die calciumreiche Probe.
+       Auswahl aus Probe 1 / Probe 2 / Probe 3. Lösung: Probe 2.
+       (Auswahl-Seite ohne Erklärtext: frage="")                       */
+    { id:"calcium", nr:6, titel:"Das calciumreiche Wasser", typ:"auswahl",
+      frage:"",
+      optionen:[ "Probe 1", "Probe 2", "Probe 3" ],
+      antwort:"Probe 2"
     }
   ],
 
   // Abschlussvideo auf der Abschluss-Folgeseite. Datei in DIESEN Ordner legen.
   // Fehlt die Datei, wird das Feld einfach ausgeblendet – alles andere läuft.
-  abschlussVideo: "abschluss-video.mp4",
+  abschlussVideo: "video2.mp4",
   loesungswort:   "Hefe",
   belohnungstext: ""
 };
@@ -750,17 +781,24 @@ function endIntro(){         // Video zu Ende (oder übersprungen/Fehler) -> Kno
   introEnded=true;
   $("#introNext").classList.add("show");
 }
+/* Intro-Video anhalten, damit der Ton nicht im Hintergrund weiterläuft
+   (z. B. beim Überspringen oder beim Wechsel zur Rätsel-Übersicht). */
+function stopIntro(){
+  try{ introVideo.pause(); introVideo.removeAttribute("src"); introVideo.load(); }catch(e){}
+  introPlayHint.classList.remove("show");
+}
 introVideo.addEventListener("ended", endIntro);
 introVideo.addEventListener("error", ()=>{ if(introVideo.src){ $("#introError").classList.add("show"); endIntro(); } });
 introVideo.addEventListener("play",  ()=> introPlayHint.classList.remove("show"));
 $("#screen-intro .viewport").addEventListener("click", ()=>{
   if(introVideo.paused){ introVideo.play(); } else { introVideo.pause(); introPlayHint.classList.add("show"); }
 });
-$("#skipBtn").onclick     = endIntro;
+$("#skipBtn").onclick     = ()=>{ stopIntro(); endIntro(); };
 $("#toPuzzlesBtn").onclick = ()=>{ initAudio(); goOverview(); };
 
 /* ---------------- Übersicht ---------------- */
 function goOverview(){
+  stopIntro();          // Intro-Ton darf nicht im Hintergrund weiterlaufen
   saveState();
   buildOverview();
   show("screen-overview");
@@ -1210,7 +1248,7 @@ function openSettings(){
 function closeSettings(){ settings.hidden=true; }
 function showMenuStep(){
   $("#pinStep").hidden=true; $("#menuStep").hidden=false;
-  syncFsLabel(); refreshInstall(); buildChapters();
+  syncFsLabel(); refreshInstall(); buildChapters(); buildSolveList();
 }
 
 function renderPinDots(){
@@ -1257,6 +1295,32 @@ function buildChapters(){
   const f=document.createElement("button"); f.type="button"; f.textContent="🏆 Abschluss";
   f.onclick=()=>{ closeSettings(); goFinal(); };
   box.appendChild(f);
+}
+
+// Als-gelöst-Umschalter: jedes Rätsel lässt sich direkt auf gelöst/offen
+// schalten (praktisch, wenn etwas hakt oder man neu beginnen musste).
+function buildSolveList(){
+  const box=$("#solveList"); box.innerHTML="";
+  RS.forEach((s,i)=>{
+    const on=solved.has(s.id);
+    const row=document.createElement("button"); row.type="button";
+    row.className="solverow"+(on?" on":"");
+    row.innerHTML=
+      `<span class="slabel">${(s.nr ?? (i+1))+". "+s.titel}</span>`+
+      `<span class="stoggle" aria-hidden="true"></span>`;
+    row.setAttribute("aria-pressed", on ? "true" : "false");
+    row.onclick=()=>{
+      initAudio();
+      if(solved.has(s.id)){ solved.delete(s.id); sndNo(); }
+      else                { solved.add(s.id);    sndOk(); }
+      finalCelebrated=false;     // Abschluss-Feiern darf erneut ausgelöst werden
+      saveState();
+      buildSolveList();          // Schalter aktualisieren
+      buildChapters();           // Sprungmarken mitziehen
+      if($("#screen-overview").classList.contains("is-active")) buildOverview();
+    };
+    box.appendChild(row);
+  });
 }
 
 $("#gearBtn").onclick       = openSettings;
