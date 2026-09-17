@@ -634,10 +634,10 @@ const CONFIG = {
         { name:"Weißer Wattestab",   emoji:"⚪", schwimmt:true  },
         { name:"Geldmünze",          emoji:"🪙", schwimmt:false },
         { name:"Stein",              emoji:"🪨", schwimmt:false },
-        { name:"Holz",               emoji:"🪵", schwimmt:false },
+        { name:"Holz",               emoji:"🪵", schwimmt:true  },
         { name:"Schwarzer Clip",     emoji:"🖇️", schwimmt:true  },
         { name:"Wäscheklammer",      emoji:"🧷", schwimmt:false },
-        { name:"Rot-grüner Draht",   emoji:"🔌", schwimmt:false },
+        { name:"Gelb-grüner Draht",  emoji:"🔌", schwimmt:false },
         { name:"Holzlöffel",         emoji:"🥄", schwimmt:true  },
         { name:"Kunststoffgabel",    emoji:"🍴", schwimmt:true  },
         { name:"Legostein",          emoji:"🧱", schwimmt:true  },
@@ -1070,7 +1070,7 @@ function openSortier(r){
   document.querySelectorAll("#pSortier .zone-items").forEach(z=>z.innerHTML="");
   r.objekte.forEach((o,i)=>{
     const chip=document.createElement("div"); chip.className="schip"; chip.dataset.i=i;
-    chip.innerHTML=`<span class="semoji">${o.emoji||"❓"}</span><span>${o.name}</span>`;
+    chip.innerHTML=`<span>${o.name}</span>`;   // nur das Wort, keine (teils irreführenden) Icons
     chip.addEventListener("pointerdown", e=>{ e.preventDefault(); initAudio(); startDrag(chip, e); });
     pool.appendChild(chip);
   });
